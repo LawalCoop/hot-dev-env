@@ -5,10 +5,10 @@ Unified development environment for HOTOSM applications using subdomain routing 
 ## Overview
 
 This repo orchestrates multiple HOTOSM applications:
-- **Portal** - Authentication & SSO portal
+- **Portal** - Main application portal
+- **Login** - Authentication & SSO service
 - **Drone-TM** - Drone Tasking Manager
 - **Auth-libs** - Shared authentication libraries
-- **Hanko** - SSO authentication service
 
 All services run locally with subdomain routing (just like production):
 ```
@@ -35,6 +35,7 @@ cd /home/willaru/dev/HOT
 # Clone all repos as siblings
 git clone https://github.com/hotosm/hot-dev-env.git
 git clone https://github.com/hotosm/portal.git
+git clone https://github.com/hotosm/login.git
 git clone https://github.com/hotosm/drone-tm.git
 git clone https://github.com/hotosm/auth-libs.git
 
@@ -42,6 +43,7 @@ git clone https://github.com/hotosm/auth-libs.git
 # HOT/
 # ├── hot-dev-env/
 # ├── portal/
+# ├── login/
 # ├── drone-tm/
 # └── auth-libs/
 ```
@@ -89,12 +91,39 @@ Open in your browser:
 
 Press `Ctrl+C` to stop.
 
+## HTTPS Setup (Recommended)
+
+Modern web features like **WebAuthn/Passkeys** (used by Hanko) and **Service Workers** require HTTPS. Set up local HTTPS in 2 minutes:
+
+```bash
+# Automated setup (installs mkcert, generates certificates)
+./scripts/setup-https.sh
+```
+
+This will:
+1. Install `mkcert` (if not already installed)
+2. Install a local Certificate Authority in your browser
+3. Generate SSL certificates for `*.localhost` and `*.hotosm.test`
+4. Configure Traefik to use HTTPS
+
+After setup, access services via HTTPS:
+- **Portal:** https://portal.localhost
+- **Drone-TM:** https://dronetm.localhost
+- **Hanko Auth:** https://login.localhost
+- **MinIO Console:** https://minio.localhost
+- **Traefik Dashboard:** https://traefik.localhost
+
+Your browser will show a **valid certificate** with no warnings.
+
+**See [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md) for detailed documentation and troubleshooting.**
+
 ## Common Commands
 
 ```bash
 # Development
 make dev              # Start all services
 make dev-portal       # Start Portal only
+make dev-login        # Start Login only (when frontend/backend exist)
 make dev-dronetm      # Start Drone-TM only
 make stop             # Stop all services
 make restart          # Restart all services
@@ -153,6 +182,7 @@ HOT/
 │   └── traefik/
 │
 ├── portal/               # Portal repo (independent)
+├── login/                # Login/SSO repo (independent)
 ├── drone-tm/             # Drone-TM repo (independent)
 └── auth-libs/            # Auth-libs repo (independent)
 ```
@@ -197,6 +227,30 @@ make dev-portal
 cd ../portal
 make dev-frontend  # Frontend on :5173
 make dev-backend   # Backend on :8000
+```
+
+### Working on Login
+
+The Login service works in two modes:
+
+**Mode 1: Hanko Only (default)**
+- When `login/frontend/` and `login/backend/` don't exist
+- Only Hanko authentication service runs
+- Used initially, before custom login page is created
+
+**Mode 2: Custom Login (when migrated)**
+- When `login/frontend/` and `login/backend/` exist
+- Custom React login page + FastAPI backend
+- Hanko runs as backend service for JWT validation
+
+```bash
+# Start only Login services (requires frontend/backend)
+make dev-login
+
+# Or run locally
+cd ../login
+cd frontend && pnpm dev  # Frontend on :5174
+cd backend && uv run uvicorn app.main:app --reload  # Backend on :8000
 ```
 
 ### Working on Drone-TM

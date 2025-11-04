@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup install dev stop restart logs health auth-libs clean
+.PHONY: help setup setup-https install dev stop restart logs health auth-libs clean
 
 # Default target
 help:
@@ -11,11 +11,13 @@ help:
 	@echo ""
 	@echo "Setup (first time):"
 	@echo "  make setup          - Check repos and configure hosts"
+	@echo "  make setup-https    - Setup HTTPS with mkcert (recommended)"
 	@echo "  make install        - Install all dependencies"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev            - Start all services"
 	@echo "  make dev-portal     - Start Portal only"
+	@echo "  make dev-login      - Start Login only (requires frontend/backend)"
 	@echo "  make dev-dronetm    - Start Drone-TM only"
 	@echo ""
 	@echo "Management:"
@@ -50,6 +52,13 @@ setup:
 	@echo ""
 	@./scripts/setup.sh
 
+setup-https:
+	@echo "════════════════════════════════════════════════"
+	@echo "  HTTPS Setup with mkcert"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@./scripts/setup-https.sh
+
 install:
 	@echo "Installing dependencies..."
 	@echo ""
@@ -61,6 +70,15 @@ install:
 	@echo ""
 	@echo "→ Portal backend..."
 	@cd ../portal/backend && uv sync --all-extras
+	@echo ""
+	@if [ -d "../login/frontend" ]; then \
+		echo "→ Login frontend..."; \
+		cd ../login/frontend && pnpm install; \
+	fi
+	@if [ -d "../login/backend" ]; then \
+		echo "→ Login backend..."; \
+		cd ../login/backend && uv sync; \
+	fi
 	@echo ""
 	@echo "→ Drone-TM frontend..."
 	@cd ../drone-tm/src/frontend && pnpm install
@@ -81,19 +99,49 @@ dev:
 	@echo "  Starting HOTOSM Development Environment"
 	@echo "════════════════════════════════════════════════"
 	@echo ""
-	@echo "Portal:        http://portal.localhost"
-	@echo "Drone-TM:      http://dronetm.localhost"
-	@echo "Hanko Auth:    http://login.localhost"
-	@echo "MinIO Console: http://minio.localhost"
-	@echo "Traefik:       http://traefik.localhost"
+	@echo "Building and starting services..."
 	@echo ""
-	@echo "Press Ctrl+C to stop"
+	@docker compose up --build -d
 	@echo ""
-	docker compose up --build
+	@echo "════════════════════════════════════════════════"
+	@echo "  Services are starting..."
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@echo "Waiting for services to be ready..."
+	@sleep 10
+	@echo ""
+	@echo "════════════════════════════════════════════════"
+	@echo "  ✓ HOTOSM Development Environment Ready!"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@echo "Available services:"
+	@echo ""
+	@echo "  Portal:        http://portal.localhost"
+	@echo "  Login:         http://login.localhost"
+	@echo "  Drone-TM:      http://dronetm.localhost"
+	@echo "  MinIO Console: http://minio.localhost"
+	@echo "  Traefik:       http://traefik.localhost"
+	@echo ""
+	@echo "Useful commands:"
+	@echo "  make logs-follow - Follow logs (live)"
+	@echo "  make logs        - View all logs"
+	@echo "  make ps          - Show running services"
+	@echo "  make stop        - Stop all services"
+	@echo ""
 
 dev-portal:
 	@echo "Starting Portal services..."
 	docker compose up portal-frontend portal-backend portal-db hanko hanko-db --build
+
+dev-login:
+	@echo "Starting Login services..."
+	@if [ -d "../login/frontend" ] && [ -d "../login/backend" ]; then \
+		docker compose --profile login up login-frontend login-backend hanko hanko-db --build; \
+	else \
+		echo "Error: login/frontend or login/backend not found"; \
+		echo "Create these directories first, then run make install"; \
+		exit 1; \
+	fi
 
 dev-dronetm:
 	@echo "Starting Drone-TM services..."
