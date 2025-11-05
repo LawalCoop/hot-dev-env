@@ -24,6 +24,21 @@ echo ""
 echo "→ Checking repositories..."
 MISSING_REPOS=()
 
+# Define repository URLs
+declare -A REPO_URLS=(
+    ["portal"]="https://github.com/hotosm/portal.git"
+    ["drone-tm"]="https://github.com/hotosm/drone-tm.git"
+    ["auth-libs"]="https://github.com/LawalCoop/hot-auth-libs.git"
+    ["login"]="https://github.com/LawalCoop/login.git"
+)
+
+declare -A REPO_URLS_SSH=(
+    ["portal"]="git@github.com:hotosm/portal.git"
+    ["drone-tm"]="git@github.com:hotosm/drone-tm.git"
+    ["auth-libs"]="git@github.com:LawalCoop/hot-auth-libs.git"
+    ["login"]="git@github.com:LawalCoop/login.git"
+)
+
 if [[ ! -d "../portal" ]]; then
     MISSING_REPOS+=("portal")
 fi
@@ -46,15 +61,52 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         echo "    - $repo"
     done
     echo ""
-    echo "Please clone the missing repositories:"
-    for repo in "${MISSING_REPOS[@]}"; do
-        echo "  cd /home/willaru/dev/HOT && git clone https://github.com/hotosm/$repo.git"
-    done
-    exit 1
-fi
 
-echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login)"
-echo ""
+    # Ask user if they want to clone
+    read -p "Would you like to clone the missing repositories? (y/n): " -n 1 -r
+    echo ""
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # Ask for clone method
+        echo ""
+        echo "Choose clone method:"
+        echo "  1) HTTPS (works everywhere)"
+        echo "  2) SSH (requires SSH key setup)"
+        read -p "Enter choice (1 or 2): " -n 1 -r CLONE_METHOD
+        echo ""
+        echo ""
+
+        # Clone missing repos
+        cd ..
+        for repo in "${MISSING_REPOS[@]}"; do
+            echo "→ Cloning $repo..."
+            if [[ $CLONE_METHOD == "2" ]]; then
+                git clone "${REPO_URLS_SSH[$repo]}" "$repo"
+            else
+                git clone "${REPO_URLS[$repo]}" "$repo"
+            fi
+
+            if [[ $? -eq 0 ]]; then
+                echo "  ✓ Successfully cloned $repo"
+            else
+                echo "  ✗ Failed to clone $repo"
+                exit 1
+            fi
+        done
+        cd hot-dev-env
+        echo ""
+        echo "  ✓ All repositories cloned successfully"
+        echo ""
+    else
+        echo ""
+        echo "Setup cannot continue without the required repositories."
+        echo "Please clone them manually or run setup again."
+        exit 1
+    fi
+else
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login)"
+    echo ""
+fi
 
 # Create .env if it doesn't exist
 echo "→ Setting up environment files..."
