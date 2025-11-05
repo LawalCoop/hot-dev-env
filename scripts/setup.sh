@@ -36,6 +36,10 @@ if [[ ! -d "../auth-libs" ]]; then
     MISSING_REPOS+=("auth-libs")
 fi
 
+if [[ ! -d "../login" ]]; then
+    MISSING_REPOS+=("login")
+fi
+
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
     echo "  ✗ Missing repositories:"
     for repo in "${MISSING_REPOS[@]}"; do
@@ -49,7 +53,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
     exit 1
 fi
 
-echo "  ✓ All repositories present (portal, drone-tm, auth-libs)"
+echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login)"
 echo ""
 
 # Create .env if it doesn't exist
@@ -84,6 +88,15 @@ else
     echo "  ✓ ../drone-tm/.env already exists"
 fi
 
+if [[ ! -f "../login/.env" ]]; then
+    if [[ -f "../login/.env.example" ]]; then
+        cp ../login/.env.example ../login/.env
+        echo "  ✓ Created ../login/.env (please review and update)"
+    fi
+else
+    echo "  ✓ ../login/.env already exists"
+fi
+
 echo ""
 
 # Configure /etc/hosts
@@ -99,6 +112,7 @@ echo "Next steps:"
 echo "  1. Review and update environment files:"
 echo "     - .env"
 echo "     - ../portal/.env"
+echo "     - ../login/.env"
 echo "     - ../drone-tm/.env"
 echo ""
 echo "  2. Install dependencies:"

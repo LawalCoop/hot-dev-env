@@ -1,5 +1,5 @@
 # HOTOSM Development Environment
-# Orchestrates Portal, Drone-TM, and shared services using subdomain routing
+# Orchestrates Portal, Drone-TM, and shared services using path-based routing
 
 name: hotosm-dev
 
@@ -17,7 +17,7 @@ volumes:
 
 services:
   # ==========================================
-  # Traefik - Reverse Proxy (Subdomain Routing)
+  # Traefik - Reverse Proxy (Path-based Routing)
   # ==========================================
   traefik:
     image: traefik:v2.11
@@ -27,17 +27,24 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.file.directory=/etc/traefik/dynamic"
       - "--log.level=INFO"
     ports:
       - "80:80"      # HTTP
+      - "443:443"    # HTTPS
       - "8080:8080"  # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/etc/traefik/certs:ro
+      - ./traefik-tls.yml:/etc/traefik/dynamic/tls.yml:ro
     networks:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.rule=Host(`localhost`,`127.0.0.1`) && PathPrefix(`/traefik`)"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 
   # ==========================================
@@ -49,21 +56,23 @@ services:
     build:
       context: ../portal/frontend
       dockerfile: Dockerfile
-      target: dev
+      target: development
     container_name: hotosm-portal-frontend
     volumes:
-      - ../portal/frontend/src:/app/src
-      - ../portal/frontend/public:/app/public
-      - ../portal/frontend/auth-libs:/app/auth-libs
+      - ../portal/frontend:/app
+      - /app/node_modules
     environment:
-      - VITE_HANKO_URL=http://login.localhost
-      - VITE_DRONE_TM_FRONTEND_URL=http://dronetm.localhost
-      - VITE_DRONE_TM_API_URL=http://dronetm.localhost/api
+      - VITE_HANKO_URL=https://login.hotosm.test
+      - VITE_API_URL=https://portal.hotosm.test/api
+      - VITE_DRONE_TM_FRONTEND_URL=https://dronetm.hotosm.test
+      # Note: API routing handled by Traefik, not Vite proxy
     networks:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portal-frontend.rule=Host(`portal.localhost`)"
+      - "traefik.http.routers.portal-frontend.rule=Host(`portal.hotosm.test`)"
+      - "traefik.http.routers.portal-frontend.entrypoints=websecure"
+      - "traefik.http.routers.portal-frontend.tls=true"
       - "traefik.http.services.portal-frontend.loadbalancer.server.port=5173"
     depends_on:
       - portal-backend
@@ -71,26 +80,29 @@ services:
   # Portal Backend (FastAPI)
   portal-backend:
     build:
-      context: ../portal/backend
-      dockerfile: Dockerfile
-      target: dev
+      context: ../portal
+      dockerfile: backend/Dockerfile
+      target: development
     container_name: hotosm-portal-backend
     volumes:
-      - ../portal/backend/app:/app/app
-      - ../portal/backend/auth-libs:/app/auth-libs
+      - ../portal/backend:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql+asyncpg://portal:portal@portal-db:5432/portal
       - HANKO_API_URL=http://hanko:8000
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
-      - COOKIE_DOMAIN=.localhost
+      # COOKIE_DOMAIN not set - let browser handle it
       - OSM_CLIENT_ID=${OSM_CLIENT_ID}
       - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
-      - FRONTEND_URL=http://portal.localhost
+      - FRONTEND_URL=https://portal.hotosm.test
+      - BACKEND_CORS_ORIGINS=["https://portal.hotosm.test","https://login.hotosm.test","https://dronetm.hotosm.test"]
     networks:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.portal-backend.rule=Host(`portal.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.portal-backend.rule=Host(`portal.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.portal-backend.entrypoints=websecure"
+      - "traefik.http.routers.portal-backend.tls=true"
       - "traefik.http.services.portal-backend.loadbalancer.server.port=8000"
     depends_on:
       - portal-db
@@ -115,24 +127,136 @@ services:
       retries: 5
 
   # ==========================================
-  # Hanko - Shared Authentication Service
+  # Login - Authentication & SSO Service
   # ==========================================
 
-  hanko:
-    image: ghcr.io/teamhanko/hanko:latest
-    container_name: hotosm-hanko
+  # Login Frontend (React + Vite) - Custom login page
+  login-frontend:
+    build:
+      context: ../login/frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: hotosm-login-frontend
+    volumes:
+      - ../login/frontend/src:/app/src
+      - ../login/frontend/public:/app/public
+      - ../login/frontend/auth-libs:/app/auth-libs
+      - ../login/frontend/vite.config.ts:/app/vite.config.ts
     environment:
-      - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
-      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
-      - COOKIE_DOMAIN=.localhost
+      - VITE_HANKO_URL=https://login.hotosm.test
+      - VITE_BACKEND_URL=https://login.hotosm.test/api
     networks:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.hanko.rule=Host(`login.localhost`)"
+      - "traefik.http.routers.login-frontend.rule=Host(`login.hotosm.test`)"
+      - "traefik.http.routers.login-frontend.entrypoints=websecure"
+      - "traefik.http.routers.login-frontend.tls=true"
+      - "traefik.http.routers.login-frontend.priority=1"
+      - "traefik.http.services.login-frontend.loadbalancer.server.port=5174"
+    depends_on:
+      - login-backend
+
+  # Login Backend (FastAPI) - Custom auth logic
+  login-backend:
+    build:
+      context: ..
+      dockerfile: login/backend/Dockerfile
+      target: dev
+    container_name: hotosm-login-backend
+    volumes:
+      - ../login/backend/app:/app/app
+      - ../login/backend/auth-libs:/app/auth-libs
+      - ../login/backend/.env:/app/.env
+      - /app/.venv
+    environment:
+      - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      # COOKIE_DOMAIN not set - let browser handle it (works with both localhost and 127.0.0.1)
+      - OSM_CLIENT_ID=${OSM_CLIENT_ID}
+      - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
+      - OSM_REDIRECT_URI=https://login.hotosm.test/api/auth/osm/callback
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      # Route /me endpoint to login-backend
+      - "traefik.http.routers.login-backend-me.rule=Host(`login.hotosm.test`) && Path(`/me`)"
+      - "traefik.http.routers.login-backend-me.entrypoints=websecure"
+      - "traefik.http.routers.login-backend-me.tls=true"
+      - "traefik.http.routers.login-backend-me.priority=20"
+      - "traefik.http.routers.login-backend-me.service=login-backend"
+      # Route /api endpoints to login-backend
+      - "traefik.http.routers.login-backend.rule=Host(`login.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.login-backend.entrypoints=websecure"
+      - "traefik.http.routers.login-backend.tls=true"
+      - "traefik.http.routers.login-backend.priority=15"
+      - "traefik.http.services.login-backend.loadbalancer.server.port=8000"
+    depends_on:
+      - hanko
+      - hanko-db
+
+  # ==========================================
+  # Hanko - Core Authentication Service (internal)
+  # ==========================================
+
+  # Hanko database migrations (runs once before Hanko starts)
+  hanko-migrate:
+    image: ghcr.io/teamhanko/hanko:latest
+    container_name: hotosm-hanko-migrate
+    volumes:
+      - ./hanko-config.yaml:/etc/config/.config.yaml:ro
+    command: migrate up --config /etc/config/.config.yaml
+    environment:
+      - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
+    depends_on:
+      hanko-db:
+        condition: service_healthy
+    networks:
+      - hotosm
+    restart: "no"
+
+  hanko:
+    image: ghcr.io/teamhanko/hanko:latest
+    container_name: hotosm-hanko
+    volumes:
+      - ./hanko-config.yaml:/etc/config/.config.yaml:ro
+    command: serve --config /etc/config/.config.yaml public
+    environment:
+      - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
+      - SESSION_COOKIE_DOMAIN=.hotosm.test
+      - SESSION_COOKIE_HTTP_ONLY=true
+      - SESSION_COOKIE_SAME_SITE=lax
+      - SESSION_COOKIE_SECURE=false
+      - THIRD_PARTY_COOKIE_DOMAIN=.hotosm.test
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      # Hanko API endpoints with higher priority than login-frontend
+      - "traefik.http.routers.hanko-wellknown.rule=Host(`login.hotosm.test`) && PathPrefix(`/.well-known`)"
+      - "traefik.http.routers.hanko-wellknown.entrypoints=websecure"
+      - "traefik.http.routers.hanko-wellknown.tls=true"
+      - "traefik.http.routers.hanko-wellknown.priority=50"
+      - "traefik.http.routers.hanko-wellknown.service=hanko"
+      - "traefik.http.routers.hanko-api.rule=Host(`login.hotosm.test`) && (PathPrefix(`/registration`) || PathPrefix(`/logout`) || PathPrefix(`/sessions`) || PathPrefix(`/users`) || PathPrefix(`/passcode`) || PathPrefix(`/webauthn`) || PathPrefix(`/token`) || PathPrefix(`/thirdparty`))"
+      - "traefik.http.routers.hanko-api.entrypoints=websecure"
+      - "traefik.http.routers.hanko-api.tls=true"
+      - "traefik.http.routers.hanko-api.priority=10"
+      - "traefik.http.routers.hanko-api.service=hanko"
+      # Hanko /login endpoint for POST requests (API)
+      - "traefik.http.routers.hanko-login.rule=Host(`login.hotosm.test`) && Path(`/login`) && Method(`POST`,`PUT`,`DELETE`,`PATCH`)"
+      - "traefik.http.routers.hanko-login.entrypoints=websecure"
+      - "traefik.http.routers.hanko-login.tls=true"
+      - "traefik.http.routers.hanko-login.priority=5"
+      - "traefik.http.routers.hanko-login.service=hanko"
       - "traefik.http.services.hanko.loadbalancer.server.port=8000"
     depends_on:
-      - hanko-db
+      hanko-db:
+        condition: service_healthy
+      hanko-migrate:
+        condition: service_completed_successfully
 
   hanko-db:
     image: postgres:16-alpine
@@ -159,24 +283,34 @@ services:
   dronetm-frontend:
     build:
       context: ../drone-tm/src/frontend
-      dockerfile: prod.dockerfile
-      target: dev
+      dockerfile: Dockerfile
+      target: development
     container_name: hotosm-dronetm-frontend
     volumes:
       - ../drone-tm/src/frontend/src:/app/src
       - ../drone-tm/src/frontend/public:/app/public
       - ../drone-tm/src/frontend/auth-libs:/app/auth-libs
+      - ../drone-tm/src/frontend/vite.config.ts:/app/vite.config.ts
+      - ../drone-tm/src/frontend/index.html:/app/index.html
+      - ../drone-tm/src/frontend/components.json:/app/components.json
+      - ../drone-tm/src/frontend/postcss.config.js:/app/postcss.config.js
+      - ../drone-tm/src/frontend/tailwind.config.js:/app/tailwind.config.js
     environment:
       - VITE_AUTH_PROVIDER=hanko
-      - VITE_HANKO_API_URL=http://login.localhost
-      - VITE_PORTAL_SSO_URL=http://portal.localhost
-      - VITE_FRONTEND_URL=http://dronetm.localhost
-      - VITE_API_URL=http://dronetm.localhost/api
+      - VITE_HANKO_API_URL=https://login.hotosm.test
+      - VITE_PORTAL_SSO_URL=https://login.hotosm.test
+      - VITE_FRONTEND_URL=https://dronetm.hotosm.test
+      - VITE_API_URL=https://dronetm.hotosm.test/api
+      # Legacy env vars (for compatibility with existing code)
+      - API_URL_V1=https://dronetm.hotosm.test/api
+      - BASE_URL=https://dronetm.hotosm.test/api
     networks:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dronetm-frontend.rule=Host(`dronetm.localhost`)"
+      - "traefik.http.routers.dronetm-frontend.rule=Host(`dronetm.hotosm.test`)"
+      - "traefik.http.routers.dronetm-frontend.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-frontend.tls=true"
       - "traefik.http.services.dronetm-frontend.loadbalancer.server.port=3040"
     depends_on:
       - dronetm-backend
@@ -185,27 +319,47 @@ services:
   dronetm-backend:
     build:
       context: ../drone-tm/src/backend
-      dockerfile: prod.dockerfile
-      target: dev
+      dockerfile: Dockerfile
+      target: service
     container_name: hotosm-dronetm-backend
     volumes:
-      - ../drone-tm/src/backend/app:/app/app
-      - ../drone-tm/src/backend/auth-libs:/app/auth-libs
+      - ../drone-tm/src/backend/app:/project/src/backend/app
+      - ../drone-tm/src/backend/auth-libs:/project/src/backend/auth-libs
     environment:
       - DATABASE_URL=postgresql+asyncpg://dtm:dtm@dronetm-db:5432/dtm_db
+      - POSTGRES_HOST=dronetm-db
+      - AUTH_PROVIDER=hanko
       - HANKO_API_URL=http://hanko:8000
-      - BACKEND_URL=http://dronetm.localhost
-      - FRONTEND_URL=http://dronetm.localhost
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - BACKEND_URL=https://dronetm.hotosm.test
+      - FRONTEND_URL=https://dronetm.hotosm.test
       - S3_ENDPOINT=http://minio:9000
       - S3_ACCESS_KEY=dtm_user
       - S3_SECRET_KEY=somelongpassword
       - S3_BUCKET_NAME=dtm-bucket
       - REDIS_URL=redis://redis:6379
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
     networks:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dronetm-backend.rule=Host(`dronetm.localhost`) && PathPrefix(`/api`)"
+      # Main dronetm backend router (from dronetm.hotosm.test)
+      - "traefik.http.routers.dronetm-backend.rule=Host(`dronetm.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dronetm-backend.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-backend.tls=true"
+      # Portal integration: Route /api/drone-tm from portal.hotosm.test to dronetm-backend
+      - "traefik.http.routers.dronetm-backend-portal.rule=Host(`portal.hotosm.test`) && PathPrefix(`/api/drone-tm`)"
+      - "traefik.http.routers.dronetm-backend-portal.entrypoints=websecure"
+      - "traefik.http.routers.dronetm-backend-portal.tls=true"
+      - "traefik.http.routers.dronetm-backend-portal.priority=100"
+      - "traefik.http.routers.dronetm-backend-portal.service=dronetm-backend"
+      - "traefik.http.routers.dronetm-backend-portal.middlewares=dronetm-portal-rewrite"
+      # Middleware to rewrite /api/drone-tm/* to /api/*
+      - "traefik.http.middlewares.dronetm-portal-rewrite.replacepathregex.regex=^/api/drone-tm/(.*)"
+      - "traefik.http.middlewares.dronetm-portal-rewrite.replacepathregex.replacement=/api/$$1"
+      # Service configuration
       - "traefik.http.services.dronetm-backend.loadbalancer.server.port=8000"
     depends_on:
       - dronetm-db
@@ -225,7 +379,7 @@ services:
     networks:
       - hotosm
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dtm"]
+      test: ["CMD-SHELL", "pg_isready -U dtm -d dtm_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -246,9 +400,11 @@ services:
       - "traefik.enable=true"
       # MinIO Console
       - "traefik.http.routers.minio-console.rule=Host(`minio.localhost`)"
+      - "traefik.http.routers.minio-console.service=minio-console"
       - "traefik.http.services.minio-console.loadbalancer.server.port=9090"
       # MinIO API (for S3 operations)
       - "traefik.http.routers.minio-api.rule=Host(`minio.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.minio-api.service=minio-api"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
 
   # Redis - Cache and task queue
