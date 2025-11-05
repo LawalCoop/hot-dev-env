@@ -10,7 +10,7 @@ networks:
 
 volumes:
   portal-db-data:
-  portal-hanko-db-data:
+  login-hanko-db-data:
   dronetm-db-data:
   dronetm-minio-data:
   dronetm-redis-data:
@@ -201,7 +201,7 @@ services:
       - hanko-db
 
   # ==========================================
-  # Hanko - Core Authentication Service (internal)
+  # Hanko - Core Authentication Service (from login repo)
   # ==========================================
 
   # Hanko database migrations (runs once before Hanko starts)
@@ -209,7 +209,7 @@ services:
     image: ghcr.io/teamhanko/hanko:latest
     container_name: hotosm-hanko-migrate
     volumes:
-      - ./hanko-config.yaml:/etc/config/.config.yaml:ro
+      - ../login/hanko-config.yaml:/etc/config/.config.yaml:ro
     command: migrate up --config /etc/config/.config.yaml
     environment:
       - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
@@ -224,7 +224,7 @@ services:
     image: ghcr.io/teamhanko/hanko:latest
     container_name: hotosm-hanko
     volumes:
-      - ./hanko-config.yaml:/etc/config/.config.yaml:ro
+      - ../login/hanko-config.yaml:/etc/config/.config.yaml:ro
     command: serve --config /etc/config/.config.yaml public
     environment:
       - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
@@ -269,7 +269,7 @@ services:
       - POSTGRES_PASSWORD=hanko
       - POSTGRES_DB=hanko
     volumes:
-      - portal-hanko-db-data:/var/lib/postgresql/data
+      - login-hanko-db-data:/var/lib/postgresql/data
     networks:
       - hotosm
     healthcheck:
