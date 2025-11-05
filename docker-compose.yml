@@ -83,6 +83,8 @@ services:
       context: ../portal
       dockerfile: backend/Dockerfile
       target: development
+      ssh:
+        - default
     container_name: hotosm-portal-backend
     volumes:
       - ../portal/backend:/app
@@ -163,6 +165,8 @@ services:
       context: ..
       dockerfile: login/backend/Dockerfile
       target: dev
+      ssh:
+        - default
     container_name: hotosm-login-backend
     volumes:
       - ../login/backend/app:/app/app
