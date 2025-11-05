@@ -3,6 +3,10 @@
 
 .PHONY: help setup setup-https install dev stop restart logs health auth-libs clean
 
+# Enable BuildKit for Docker builds (required for SSH forwarding)
+export DOCKER_BUILDKIT := 1
+export COMPOSE_DOCKER_CLI_BUILD := 1
+
 # Default target
 help:
 	@echo "════════════════════════════════════════════════"
