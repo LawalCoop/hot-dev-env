@@ -97,6 +97,32 @@ else
     echo "  ✓ ../login/.env already exists"
 fi
 
+# Create hanko-config.yaml files if they don't exist
+echo ""
+echo "→ Setting up Hanko configuration files..."
+
+if [[ ! -f "../login/hanko-config.yaml" ]]; then
+    if [[ -f "../login/hanko-config.yaml.example" ]]; then
+        cp ../login/hanko-config.yaml.example ../login/hanko-config.yaml
+        echo "  ✓ Created ../login/hanko-config.yaml (please update Google OAuth credentials)"
+    else
+        echo "  ⚠ ../login/hanko-config.yaml.example not found"
+    fi
+else
+    echo "  ✓ ../login/hanko-config.yaml already exists"
+fi
+
+if [[ ! -f "../portal/hanko-config.yaml" ]]; then
+    if [[ -f "../portal/hanko-config.yaml.example" ]]; then
+        cp ../portal/hanko-config.yaml.example ../portal/hanko-config.yaml
+        echo "  ✓ Created ../portal/hanko-config.yaml (please update Google OAuth credentials)"
+    else
+        echo "  ⚠ ../portal/hanko-config.yaml.example not found"
+    fi
+else
+    echo "  ✓ ../portal/hanko-config.yaml already exists"
+fi
+
 echo ""
 
 # Configure /etc/hosts
@@ -115,10 +141,15 @@ echo "     - ../portal/.env"
 echo "     - ../login/.env"
 echo "     - ../drone-tm/.env"
 echo ""
-echo "  2. Install dependencies:"
+echo "  2. Update Google OAuth credentials in:"
+echo "     - ../login/hanko-config.yaml"
+echo "     - ../portal/hanko-config.yaml"
+echo "     (Replace YOUR_GOOGLE_CLIENT_ID and YOUR_GOOGLE_CLIENT_SECRET)"
+echo ""
+echo "  3. Install dependencies:"
 echo "     make install"
 echo ""
-echo "  3. Start development environment:"
+echo "  4. Start development environment:"
 echo "     make dev"
 echo ""
 echo "URLs will be:"
