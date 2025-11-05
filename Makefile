@@ -62,8 +62,8 @@ setup-https:
 install:
 	@echo "Installing dependencies..."
 	@echo ""
-	@echo "→ Auth-libs..."
-	@cd ../auth-libs && ./scripts/build.sh && ./scripts/distribute.sh
+	@echo "→ Auth-libs (installed from GitHub)..."
+	@echo "   Using: git+ssh://git@github.com/LawalCoop/hot-auth-libs.git"
 	@echo ""
 	@echo "→ Portal frontend..."
 	@cd ../portal/frontend && pnpm install
