@@ -170,7 +170,6 @@ services:
     container_name: hotosm-login-backend
     volumes:
       - ../login/backend/app:/app/app
-      - ../login/backend/auth-libs:/app/auth-libs
       - ../login/backend/.env:/app/.env
       - /app/.venv
     environment:
