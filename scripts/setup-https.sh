@@ -55,6 +55,75 @@ if ! command -v mkcert &> /dev/null; then
         sudo mv /tmp/mkcert /usr/local/bin/mkcert
 
         echo -e "${GREEN}✓ mkcert installed${NC}"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        # Windows (Git Bash, MSYS2, Cygwin)
+        echo "Detected Windows environment"
+        echo ""
+        echo "Choose installation method:"
+        echo "  1) Chocolatey (recommended if installed)"
+        echo "  2) Scoop"
+        echo "  3) Manual download"
+        echo ""
+        read -p "Enter choice (1/2/3): " -n 1 -r INSTALL_METHOD
+        echo ""
+        echo ""
+
+        case $INSTALL_METHOD in
+            1)
+                # Check if choco is available
+                if command -v choco &> /dev/null; then
+                    echo "Installing mkcert via Chocolatey..."
+                    choco install mkcert -y
+                    echo -e "${GREEN}✓ mkcert installed${NC}"
+                else
+                    echo -e "${RED}✗ Chocolatey not found${NC}"
+                    echo ""
+                    echo "Install Chocolatey first:"
+                    echo "  https://chocolatey.org/install"
+                    echo ""
+                    echo "Or choose another method (run 'make setup-https' again)"
+                    exit 1
+                fi
+                ;;
+            2)
+                # Check if scoop is available
+                if command -v scoop &> /dev/null; then
+                    echo "Installing mkcert via Scoop..."
+                    scoop bucket add extras
+                    scoop install mkcert
+                    echo -e "${GREEN}✓ mkcert installed${NC}"
+                else
+                    echo -e "${RED}✗ Scoop not found${NC}"
+                    echo ""
+                    echo "Install Scoop first:"
+                    echo "  https://scoop.sh/"
+                    echo ""
+                    echo "Or choose another method (run 'make setup-https' again)"
+                    exit 1
+                fi
+                ;;
+            3)
+                echo "Manual installation steps:"
+                echo ""
+                echo "1. Download mkcert for Windows:"
+                echo "   https://github.com/FiloSottile/mkcert/releases/latest"
+                echo "   Download: mkcert-v*-windows-amd64.exe"
+                echo ""
+                echo "2. Rename it to 'mkcert.exe'"
+                echo ""
+                echo "3. Move it to a directory in your PATH, for example:"
+                echo "   C:\\Windows\\System32\\"
+                echo "   Or add its location to your PATH"
+                echo ""
+                echo "4. Run 'make setup-https' again after installation"
+                echo ""
+                exit 1
+                ;;
+            *)
+                echo -e "${RED}✗ Invalid choice${NC}"
+                exit 1
+                ;;
+        esac
     else
         echo -e "${RED}✗ Unsupported OS: $OSTYPE${NC}"
         echo "Please install mkcert manually: https://github.com/FiloSottile/mkcert#installation"
