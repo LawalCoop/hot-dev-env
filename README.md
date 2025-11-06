@@ -12,60 +12,88 @@ This repo orchestrates multiple HOTOSM applications:
 
 All services run locally with subdomain routing (just like production):
 ```
-http://portal.localhost        → Portal
-http://dronetm.localhost       → Drone-TM
-http://login.localhost         → Hanko SSO
-http://minio.localhost         → MinIO Console
-http://traefik.localhost       → Traefik Dashboard
+https://portal.hotosm.test        → Portal
+https://dronetm.hotosm.test       → Drone-TM
+https://login.hotosm.test         → Hanko SSO
+https://minio.hotosm.test         → MinIO Console
+https://traefik.hotosm.test       → Traefik Dashboard
 ```
 
 ## Quick Start
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+**All Platforms:**
+- [Docker Desktop](https://docs.docker.com/get-docker/) (Windows, macOS, Linux)
 - [pnpm](https://pnpm.io/installation) for JavaScript dependencies
 - [uv](https://docs.astral.sh/uv/) for Python dependencies
+- [Git Bash](https://git-scm.com/downloads) (Windows only)
 
-### 1. Clone Repositories
+**macOS Specific:**
+- Bash 4+ required (macOS ships with 3.2)
+  ```bash
+  brew install bash
+  sudo bash -c 'echo /usr/local/bin/bash >> /etc/shells'
+  chsh -s /usr/local/bin/bash
+  ```
+  Then restart your terminal
+
+### 1. Clone hot-dev-env
 
 ```bash
-cd /home/willaru/dev/HOT
+# Choose a parent directory (examples for each OS):
+# Linux/macOS:  ~/dev/HOT  or  /home/username/dev/HOT
+# Windows:      C:\dev\HOT  or  C:\Users\username\dev\HOT
 
-# Clone all repos as siblings
+cd <your-parent-directory>
 git clone https://github.com/hotosm/hot-dev-env.git
-git clone https://github.com/hotosm/portal.git
-git clone https://github.com/hotosm/login.git
-git clone https://github.com/hotosm/drone-tm.git
-git clone https://github.com/hotosm/auth-libs.git
-
-# Your directory structure should look like:
-# HOT/
-# ├── hot-dev-env/
-# ├── portal/
-# ├── login/
-# ├── drone-tm/
-# └── auth-libs/
+cd hot-dev-env
 ```
 
-### 2. Setup
+### 2. Run Setup
 
 ```bash
-cd hot-dev-env
-
-# Run setup (checks repos, configures hosts)
+# This will:
+# - Check for/clone missing repos (portal, login, drone-tm, auth-libs)
+# - Switch portal and login to develop branch automatically
+# - Create .env files from examples
+# - Configure hosts file for *.hotosm.test domains
 make setup
-
-# Review and update .env file
-cp .env.example .env
-nano .env  # Add your OSM OAuth credentials
-
-# Also review individual app .env files
-nano ../portal/.env
-nano ../drone-tm/.env
 ```
 
-### 3. Install Dependencies
+The setup script will guide you through:
+1. **Cloning missing repositories** (if needed)
+2. **Switching to develop branch** for portal and login
+3. **Creating .env files** from .env.example templates
+4. **Configuring hosts file** with instructions for your OS
+
+Your final directory structure:
+```
+<parent-directory>/
+├── hot-dev-env/
+├── portal/          (on develop branch)
+├── login/           (on develop branch)
+├── drone-tm/
+└── auth-libs/
+```
+
+### 3. Setup HTTPS (Recommended)
+
+```bash
+make setup-https
+```
+
+This installs mkcert and generates SSL certificates. Required for:
+- WebAuthn/Passkeys (Hanko authentication)
+- Service Workers and modern web features
+- Testing production-like HTTPS environment
+
+**Supports:**
+- **macOS**: Auto-install via Homebrew
+- **Linux**: Auto-install via wget
+- **Windows**: Choose Chocolatey, Scoop, or manual installation
+
+### 4. Install Dependencies
 
 ```bash
 make install
@@ -74,48 +102,40 @@ make install
 This will:
 - Build and distribute auth-libs
 - Install Portal frontend and backend deps
+- Install Login frontend and backend deps
 - Install Drone-TM frontend and backend deps
 
-### 4. Start Everything
+### 5. Start Everything
 
 ```bash
 make dev
 ```
 
 Open in your browser:
-- **Portal:** http://portal.localhost
-- **Drone-TM:** http://dronetm.localhost
-- **Hanko Auth:** http://login.localhost
-- **MinIO Console:** http://minio.localhost (admin/password)
-- **Traefik Dashboard:** http://traefik.localhost
+- **Portal:** https://portal.hotosm.test
+- **Drone-TM:** https://dronetm.hotosm.test
+- **Login:** https://login.hotosm.test
+- **MinIO Console:** https://minio.hotosm.test (admin/password)
+- **Traefik Dashboard:** https://traefik.hotosm.test
 
-Press `Ctrl+C` to stop.
+Press `Ctrl+C` to stop all services.
 
-## HTTPS Setup (Recommended)
+## Platform-Specific Notes
 
-Modern web features like **WebAuthn/Passkeys** (used by Hanko) and **Service Workers** require HTTPS. Set up local HTTPS in 2 minutes:
+### Windows
+- Use **Git Bash** to run all make commands
+- The setup script will guide you to edit `C:\Windows\System32\drivers\etc\hosts` manually
+- For mkcert, choose Chocolatey (recommended) or Scoop during `make setup-https`
 
-```bash
-# Automated setup (installs mkcert, generates certificates)
-./scripts/setup-https.sh
-```
+### macOS
+- Requires **Bash 4+** (see Prerequisites section)
+- mkcert installs automatically via Homebrew
+- hosts entries added via `sudo` command provided by setup script
 
-This will:
-1. Install `mkcert` (if not already installed)
-2. Install a local Certificate Authority in your browser
-3. Generate SSL certificates for `*.localhost` and `*.hotosm.test`
-4. Configure Traefik to use HTTPS
-
-After setup, access services via HTTPS:
-- **Portal:** https://portal.localhost
-- **Drone-TM:** https://dronetm.localhost
-- **Hanko Auth:** https://login.localhost
-- **MinIO Console:** https://minio.localhost
-- **Traefik Dashboard:** https://traefik.localhost
-
-Your browser will show a **valid certificate** with no warnings.
-
-**See [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md) for detailed documentation and troubleshooting.**
+### Linux
+- All automated - just run `make setup`
+- mkcert downloads and installs automatically
+- hosts entries added via `sudo` command provided by setup script
 
 ## Common Commands
 
@@ -149,20 +169,20 @@ make clean            # Stop and remove all containers/volumes
 All services are accessed via subdomains:
 
 ```
-┌─────────────────────────────────────────┐
-│  Browser: http://portal.localhost       │
-└───────────────┬─────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  Browser: https://portal.hotosm.test        │
+└───────────────┬──────────────────────────────┘
                 │
        ┌────────▼────────┐
-       │    Traefik      │  (Port 80)
-       │  Reverse Proxy  │
+       │    Traefik      │  (Port 443 HTTPS)
+       │  Reverse Proxy  │  (Port 80 → 443 redirect)
        └────────┬────────┘
                 │
         ┌───────┴───────┬──────────────┬──────────────┐
         │               │              │              │
    ┌────▼────┐    ┌────▼────┐   ┌────▼────┐   ┌────▼────┐
-   │ Portal  │    │Drone-TM │   │  Hanko  │   │  MinIO  │
-   │ :5173   │    │  :3040  │   │  :8000  │   │  :9090  │
+   │ Portal  │    │Drone-TM │   │  Login  │   │  MinIO  │
+   │ :5173   │    │  :3040  │   │  :5174  │   │  :9090  │
    └─────────┘    └─────────┘   └─────────┘   └─────────┘
 ```
 
@@ -199,13 +219,15 @@ The `hot-dev-env` repo only contains orchestration config (docker-compose, Makef
 
 | Service | URL | Port | Description |
 |---------|-----|------|-------------|
-| Portal Frontend | http://portal.localhost | 5173 | React app (Vite) |
-| Portal Backend | http://portal.localhost/api | 8000 | FastAPI |
-| Drone-TM Frontend | http://dronetm.localhost | 3040 | React app (Vite) |
-| Drone-TM Backend | http://dronetm.localhost/api | 8000 | FastAPI |
-| Hanko Auth | http://login.localhost | 8000 | Hanko SSO |
-| MinIO Console | http://minio.localhost | 9090 | S3 storage UI |
-| Traefik Dashboard | http://traefik.localhost | 8080 | Routing config |
+| Portal Frontend | https://portal.hotosm.test | 5173 | React app (Vite) |
+| Portal Backend | https://portal.hotosm.test/api | 8000 | FastAPI |
+| Drone-TM Frontend | https://dronetm.hotosm.test | 3040 | React app (Vite) |
+| Drone-TM Backend | https://dronetm.hotosm.test/api | 8000 | FastAPI |
+| Login Frontend | https://login.hotosm.test | 5174 | React app (Vite) |
+| Login Backend | https://login.hotosm.test/api | 8000 | FastAPI |
+| Hanko Auth | https://login.hotosm.test | 8000 | Hanko SSO (internal) |
+| MinIO Console | https://minio.hotosm.test | 9090 | S3 storage UI |
+| Traefik Dashboard | https://traefik.hotosm.test | 8080 | Routing config |
 
 ### Shared Services
 
@@ -297,21 +319,26 @@ Also configure individual app `.env` files:
 ### OSM OAuth Setup
 
 1. Register OAuth app at: https://www.openstreetmap.org/oauth2/applications/new
-2. Set redirect URI: `http://login.localhost/oauth/callback`
-3. Add Client ID and Secret to `.env`
+2. Set redirect URI: `https://login.hotosm.test/thirdparty/callback/openstreetmap`
+3. Add Client ID and Secret to `../login/hanko-config.yaml`
 
-### /etc/hosts
+### Hosts File Configuration
 
-The setup script will prompt you to add these entries:
+The setup script will detect your OS and provide instructions to add:
 
 ```
-127.0.0.1 portal.localhost
-127.0.0.1 dronetm.localhost
-127.0.0.1 login.localhost
-127.0.0.1 minio.localhost
-127.0.0.1 nodeodm.localhost
-127.0.0.1 traefik.localhost
+127.0.0.1 portal.hotosm.test
+127.0.0.1 dronetm.hotosm.test
+127.0.0.1 login.hotosm.test
+127.0.0.1 minio.hotosm.test
+127.0.0.1 traefik.hotosm.test
 ```
+
+**File locations:**
+- Linux/macOS: `/etc/hosts`
+- Windows: `C:\Windows\System32\drivers\etc\hosts`
+
+**Why?** The `.hotosm.test` domains match production (`hotosm.org`) for consistent development experience.
 
 ## Troubleshooting
 
@@ -330,12 +357,28 @@ make clean
 make dev
 ```
 
-### Can't access *.localhost URLs
+### Can't access *.hotosm.test URLs
 
-1. Check /etc/hosts has entries
-2. Try http://127.0.0.1 instead
-3. Check Traefik is running: `docker ps | grep traefik`
-4. View Traefik dashboard: http://traefik.localhost
+1. **Verify hosts file entries:**
+   - Linux/macOS: `cat /etc/hosts | grep hotosm.test`
+   - Windows: `type C:\Windows\System32\drivers\etc\hosts | findstr hotosm.test`
+
+2. **Test DNS resolution:**
+   ```bash
+   ping portal.hotosm.test
+   # Should reply from 127.0.0.1
+   ```
+
+3. **Clear DNS cache:**
+   - Linux: `sudo systemd-resolve --flush-caches`
+   - macOS: `sudo dscacheutil -flushcache`
+   - Windows: `ipconfig /flushdns`
+
+4. **Check Traefik is running:**
+   ```bash
+   docker ps | grep traefik
+   # View dashboard: https://traefik.hotosm.test
+   ```
 
 ### Portal can't connect to Drone-TM
 
