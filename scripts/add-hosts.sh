@@ -59,15 +59,62 @@ if [ "$IS_WINDOWS" = true ]; then
     echo "4. Save and close Notepad"
     echo ""
 else
-    # Linux/macOS instructions
-    echo "To add them automatically, run:"
+    # Linux/macOS - offer to add automatically
+    echo "Would you like to add them automatically? (requires sudo)"
     echo ""
-    echo "  sudo bash -c 'cat >> $HOSTS_FILE << EOF"
-    for entry in "${MISSING_ENTRIES[@]}"; do
-        echo "$entry"
-    done
-    echo "EOF'"
+    read -p "Add entries to $HOSTS_FILE? (y/N): " -n 1 -r
     echo ""
-    echo "Or add them manually to $HOSTS_FILE"
     echo ""
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Adding entries to $HOSTS_FILE..."
+        echo ""
+
+        # Create temporary file with entries
+        TMP_FILE=$(mktemp)
+        for entry in "${MISSING_ENTRIES[@]}"; do
+            echo "$entry" >> "$TMP_FILE"
+        done
+
+        # Append to hosts file with sudo
+        sudo bash -c "cat $TMP_FILE >> $HOSTS_FILE"
+
+        # Clean up temp file
+        rm "$TMP_FILE"
+
+        if [[ $? -eq 0 ]]; then
+            echo "✓ Entries added successfully!"
+            echo ""
+
+            # Flush DNS cache
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                echo "Flushing DNS cache..."
+                sudo dscacheutil -flushcache
+                sudo killall -HUP mDNSResponder 2>/dev/null
+                echo "✓ DNS cache flushed"
+            elif command -v systemctl &> /dev/null; then
+                echo "Flushing DNS cache..."
+                sudo systemctl restart systemd-resolved 2>/dev/null || true
+                echo "✓ DNS cache flushed"
+            fi
+            echo ""
+        else
+            echo "✗ Failed to add entries"
+            echo ""
+            echo "Please add them manually to $HOSTS_FILE:"
+            for entry in "${MISSING_ENTRIES[@]}"; do
+                echo "  $entry"
+            done
+            echo ""
+        fi
+    else
+        echo "Entries not added. To add them manually, run:"
+        echo ""
+        echo "  sudo bash -c 'cat >> $HOSTS_FILE << EOF"
+        for entry in "${MISSING_ENTRIES[@]}"; do
+            echo "$entry"
+        done
+        echo "EOF'"
+        echo ""
+    fi
 fi
