@@ -29,14 +29,14 @@ declare -A REPO_URLS=(
     ["portal"]="https://github.com/hotosm/portal.git"
     ["drone-tm"]="https://github.com/hotosm/drone-tm.git"
     ["auth-libs"]="https://github.com/LawalCoop/hot-auth-libs.git"
-    ["login"]="https://github.com/LawalCoop/login.git"
+    ["login"]="https://github.com/hotosm/login.git"
 )
 
 declare -A REPO_URLS_SSH=(
     ["portal"]="git@github.com:hotosm/portal.git"
     ["drone-tm"]="git@github.com:hotosm/drone-tm.git"
     ["auth-libs"]="git@github.com:LawalCoop/hot-auth-libs.git"
-    ["login"]="git@github.com:LawalCoop/login.git"
+    ["login"]="git@github.com:hotosm/login.git"
 )
 
 if [[ ! -d "../portal" ]]; then
