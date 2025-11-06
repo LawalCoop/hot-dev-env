@@ -20,6 +20,22 @@ command -v uv >/dev/null 2>&1 || { echo "  ✗ uv not installed (https://docs.as
 echo "  ✓ docker, pnpm, uv found"
 echo ""
 
+# Check bash version (need 4+ for associative arrays)
+BASH_VERSION_NUM="${BASH_VERSION%%[^0-9]*}"
+if [[ "$BASH_VERSION_NUM" -lt 4 ]]; then
+    echo "Error: This script requires Bash 4 or higher (you have $BASH_VERSION)"
+    echo ""
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macOS ships with Bash 3.2. To fix:"
+        echo "  brew install bash"
+        echo "  sudo bash -c 'echo /usr/local/bin/bash >> /etc/shells'"
+        echo "  chsh -s /usr/local/bin/bash"
+        echo ""
+        echo "Then restart your terminal and run 'make setup' again."
+    fi
+    exit 1
+fi
+
 # Check repositories
 echo "→ Checking repositories..."
 MISSING_REPOS=()
