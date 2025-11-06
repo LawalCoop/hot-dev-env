@@ -105,13 +105,13 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
             if [[ $? -eq 0 ]]; then
                 echo "  ✓ Successfully cloned $repo"
 
-                # Switch login repo to develop branch (has frontend/backend)
-                if [[ "$repo" == "login" ]]; then
+                # Switch portal and login repos to develop branch
+                if [[ "$repo" == "portal" ]] || [[ "$repo" == "login" ]]; then
                     echo "  → Switching to develop branch..."
                     cd "$repo"
                     git checkout develop
                     cd ..
-                    echo "  ✓ Login repo on develop branch"
+                    echo "  ✓ $repo repo on develop branch"
                 fi
             else
                 echo "  ✗ Failed to clone $repo"
@@ -132,23 +132,25 @@ else
     echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login)"
     echo ""
 
-    # Ensure login repo is on develop branch (has frontend/backend)
-    if [[ -d "../login" ]]; then
-        cd ../login
-        CURRENT_BRANCH=$(git branch --show-current)
-        if [[ "$CURRENT_BRANCH" != "develop" ]]; then
-            echo "→ Switching login repo to develop branch..."
-            git checkout develop
-            if [[ $? -eq 0 ]]; then
-                echo "  ✓ Login repo now on develop branch"
-            else
-                echo "  ⚠ Failed to checkout develop branch in login repo"
-                echo "    Please run: cd ../login && git checkout develop"
+    # Ensure portal and login repos are on develop branch
+    for repo in portal login; do
+        if [[ -d "../$repo" ]]; then
+            cd "../$repo"
+            CURRENT_BRANCH=$(git branch --show-current)
+            if [[ "$CURRENT_BRANCH" != "develop" ]]; then
+                echo "→ Switching $repo repo to develop branch..."
+                git checkout develop
+                if [[ $? -eq 0 ]]; then
+                    echo "  ✓ $repo repo now on develop branch"
+                else
+                    echo "  ⚠ Failed to checkout develop branch in $repo repo"
+                    echo "    Please run: cd ../$repo && git checkout develop"
+                fi
+                echo ""
             fi
-            echo ""
+            cd ../hot-dev-env
         fi
-        cd ../hot-dev-env
-    fi
+    done
 fi
 
 # Create .env if it doesn't exist
