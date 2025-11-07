@@ -93,7 +93,9 @@ services:
       - DATABASE_URL=postgresql+asyncpg://portal:portal@portal-db:5432/portal
       - HANKO_API_URL=http://hanko:8000
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
-      # COOKIE_DOMAIN not set - let browser handle it
+      - COOKIE_DOMAIN=.hotosm.test
+      - COOKIE_SECURE=true
+      - COOKIE_SAMESITE=none
       - OSM_CLIENT_ID=${OSM_CLIENT_ID}
       - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
       - FRONTEND_URL=https://portal.hotosm.test
