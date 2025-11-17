@@ -347,6 +347,9 @@ services:
       - REDIS_URL=redis://redis:6379
       - DEBUG=true
       - LOG_LEVEL=DEBUG
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:api --host 0.0.0.0 --port 8000 --log-level info --reload"
     networks:
       - hotosm
     labels:
