@@ -228,7 +228,7 @@ The `hot-dev-env` repo only contains orchestration config (docker-compose, Makef
 | Portal Backend | https://portal.hotosm.test/api | 8000 | FastAPI |
 | Drone-TM Frontend | https://dronetm.hotosm.test | 3040 | React app (Vite) |
 | Drone-TM Backend | https://dronetm.hotosm.test/api | 8000 | FastAPI |
-| Login Frontend | https://login.hotosm.test | 5174 | React app (Vite) |
+| Login Frontend | https://login.hotosm.test/app | 5174 | React app (Vite) |
 | Login Backend | https://login.hotosm.test/api | 8000 | FastAPI |
 | Hanko Auth | https://login.hotosm.test | 8000 | Hanko SSO (internal) |
 | MinIO Console | https://minio.hotosm.test | 9090 | S3 storage UI |

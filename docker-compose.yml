@@ -153,7 +153,8 @@ services:
       - hotosm
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.login-frontend.rule=Host(`login.hotosm.test`)"
+      # Route /app to login frontend (matches production K8s config)
+      - "traefik.http.routers.login-frontend.rule=Host(`login.hotosm.test`) && PathPrefix(`/app`)"
       - "traefik.http.routers.login-frontend.entrypoints=websecure"
       - "traefik.http.routers.login-frontend.tls=true"
       - "traefik.http.routers.login-frontend.priority=1"
@@ -164,8 +165,8 @@ services:
   # Login Backend (FastAPI) - Custom auth logic
   login-backend:
     build:
-      context: ..
-      dockerfile: login/backend/Dockerfile
+      context: ../login/backend
+      dockerfile: Dockerfile
       target: dev
       args:
         - BUILDKIT_INLINE_CACHE=1

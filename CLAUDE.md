@@ -76,19 +76,16 @@ All services communicate via Docker network `hotosm-dev`.
 - **Build context**: `../portal/frontend`, `../portal/backend`
 
 ### Login
-**Two modes depending on what exists:**
-
-**Mode 1: Hanko Only (current)**
-- When `login/frontend/` and `login/backend/` don't exist yet
-- Only runs Hanko service (official image)
-- JWT validation endpoints at `/.well-known`
-
-**Mode 2: Custom Login (future)**
-- When `login/frontend/` and `login/backend/` are created
-- Custom React login page (port 5174)
-- FastAPI backend for auth logic (port 8000)
-- Hanko runs as internal service for JWT
-- Uses Docker Compose profile: `--profile login`
+**Custom Login Setup (current mode):**
+- **Frontend**: React + Vite login page at `/app` (port 5174)
+- **Backend**: FastAPI for custom auth logic at `/api` (port 8000)
+- **Hanko**: Runs as internal SSO service for JWT (port 8000)
+  - Exposed endpoints: `/.well-known`, `/login`, `/registration`, etc.
+- **Routing**:
+  - `/app/*` → Custom login frontend
+  - `/api/*` → Custom login backend
+  - `/*` (catch-all) → Hanko auth endpoints
+- **Build context**: `../login/frontend`, `../login/backend`
 
 ### Drone-TM
 - **Frontend**: React 19 + Vite (port 3040)
@@ -239,3 +236,19 @@ This ensures `/api` requests go to login-backend, while `/.well-known` (JWT keys
 - Individual app repos: See their CLAUDE.md for app-specific guidance
 - Auth-libs: `/home/willaru/dev/HOT/auth-libs/CLAUDE.md`
 - Portal: `/home/willaru/dev/HOT/portal/CLAUDE.md`
+
+## Git Commit Messages
+
+Keep commit messages simple and human-like:
+
+**DO:**
+- ✅ "Fix login redirect bug"
+- ✅ "Add OSM logout endpoint"
+- ✅ "Update deploy workflow secrets"
+
+**DON'T:**
+- ❌ Mention AI/Claude/automation
+- ❌ Use robotic language
+- ❌ Add unnecessary metadata
+
+Write as if a developer typed it quickly - concise, clear, natural.
