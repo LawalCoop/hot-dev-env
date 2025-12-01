@@ -8,12 +8,14 @@ This repo orchestrates multiple HOTOSM applications:
 - **Portal** - Main application portal
 - **Login** - Authentication & SSO service
 - **Drone-TM** - Drone Tasking Manager
+- **fAIr** - AI-assisted mapping tool
 - **Auth-libs** - Shared authentication libraries
 
 All services run locally with subdomain routing (just like production):
 ```
 https://portal.hotosm.test        → Portal
 https://dronetm.hotosm.test       → Drone-TM
+https://fair.hotosm.test          → fAIr
 https://login.hotosm.test         → Hanko SSO
 https://minio.hotosm.test         → MinIO Console
 https://traefik.hotosm.test       → Traefik Dashboard
@@ -54,7 +56,7 @@ cd hot-dev-env
 
 ```bash
 # This will:
-# - Check for/clone missing repos (portal, login, drone-tm, auth-libs)
+# - Check for/clone missing repos (portal, login, drone-tm, fAIr, auth-libs)
 # - Switch portal and login to develop branch automatically
 # - Create .env files from examples
 # - Configure hosts file for *.hotosm.test domains
@@ -74,6 +76,7 @@ Your final directory structure:
 ├── portal/          (on develop branch)
 ├── login/           (on develop branch)
 ├── drone-tm/
+├── fAIr/
 └── auth-libs/
 ```
 
@@ -114,6 +117,7 @@ make dev
 Open in your browser:
 - **Portal:** https://portal.hotosm.test
 - **Drone-TM:** https://dronetm.hotosm.test
+- **fAIr:** https://fair.hotosm.test
 - **Login:** https://login.hotosm.test
 - **MinIO Console:** https://minio.hotosm.test (admin/password)
 - **Traefik Dashboard:** https://traefik.hotosm.test
@@ -145,6 +149,7 @@ make dev              # Start all services
 make dev-portal       # Start Portal only
 make dev-login        # Start Login only (when frontend/backend exist)
 make dev-dronetm      # Start Drone-TM only
+make dev-fair         # Start fAIr only
 make stop             # Stop all services
 make restart          # Restart all services
 
@@ -209,6 +214,7 @@ HOT/
 ├── portal/               # Portal repo (independent)
 ├── login/                # Login/SSO repo (independent)
 ├── drone-tm/             # Drone-TM repo (independent)
+├── fAIr/                 # fAIr repo (independent)
 └── auth-libs/            # Auth-libs repo (independent)
 ```
 
@@ -228,6 +234,8 @@ The `hot-dev-env` repo only contains orchestration config (docker-compose, Makef
 | Portal Backend | https://portal.hotosm.test/api | 8000 | FastAPI |
 | Drone-TM Frontend | https://dronetm.hotosm.test | 3040 | React app (Vite) |
 | Drone-TM Backend | https://dronetm.hotosm.test/api | 8000 | FastAPI |
+| fAIr Frontend | https://fair.hotosm.test | 3000 | React app (Vite) |
+| fAIr Backend | https://fair.hotosm.test/api | 8000 | Django |
 | Login Frontend | https://login.hotosm.test/app | 5174 | React app (Vite) |
 | Login Backend | https://login.hotosm.test/api | 8000 | FastAPI |
 | Hanko Auth | https://login.hotosm.test | 8000 | Hanko SSO (internal) |
@@ -292,6 +300,23 @@ pnpm --filter frontend dev  # Frontend on :3040
 cd src/backend && uv run uvicorn app.main:app --reload  # Backend on :8000
 ```
 
+### Working on fAIr
+
+```bash
+# Start only fAIr services
+make dev-fair
+
+# Or run locally
+cd ../fAIr
+cd frontend && pnpm dev  # Frontend on :3000
+cd backend && python manage.py runserver  # Backend on :8000
+```
+
+**Note:** fAIr uses an auto-install entrypoint. When `package.json` changes, just restart the container and dependencies will be reinstalled automatically:
+```bash
+docker compose restart fair-frontend
+```
+
 ### Updating Auth-libs
 
 When you make changes to auth-libs:
@@ -334,6 +359,7 @@ The setup script will detect your OS and provide instructions to add:
 ```
 127.0.0.1 portal.hotosm.test
 127.0.0.1 dronetm.hotosm.test
+127.0.0.1 fair.hotosm.test
 127.0.0.1 login.hotosm.test
 127.0.0.1 minio.hotosm.test
 127.0.0.1 traefik.hotosm.test

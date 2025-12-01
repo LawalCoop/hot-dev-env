@@ -46,6 +46,8 @@ declare -A REPO_URLS=(
     ["drone-tm"]="https://github.com/hotosm/drone-tm.git"
     ["auth-libs"]="https://github.com/LawalCoop/hot-auth-libs.git"
     ["login"]="https://github.com/hotosm/login.git"
+    ["openaerialmap"]="https://github.com/hotosm/openaerialmap.git"
+    ["fAIr"]="https://github.com/hotosm/fAIr.git"
 )
 
 declare -A REPO_URLS_SSH=(
@@ -53,6 +55,8 @@ declare -A REPO_URLS_SSH=(
     ["drone-tm"]="git@github.com:hotosm/drone-tm.git"
     ["auth-libs"]="git@github.com:LawalCoop/hot-auth-libs.git"
     ["login"]="git@github.com:hotosm/login.git"
+    ["openaerialmap"]="git@github.com:hotosm/openaerialmap.git"
+    ["fAIr"]="git@github.com:hotosm/fAIr.git"
 )
 
 if [[ ! -d "../portal" ]]; then
@@ -69,6 +73,14 @@ fi
 
 if [[ ! -d "../login" ]]; then
     MISSING_REPOS+=("login")
+fi
+
+if [[ ! -d "../openaerialmap" ]]; then
+    MISSING_REPOS+=("openaerialmap")
+fi
+
+if [[ ! -d "../fAIr" ]]; then
+    MISSING_REPOS+=("fAIr")
 fi
 
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
@@ -113,6 +125,27 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
                     cd ..
                     echo "  ✓ $repo repo on develop branch"
                 fi
+
+                # Switch drone-tm and openaerialmap repos to login_hanko branch
+                if [[ "$repo" == "drone-tm" ]] || [[ "$repo" == "openaerialmap" ]]; then
+                    cd "$repo"
+                    # Check if branch exists (local or remote)
+                    BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/login_hanko && echo "yes" || echo "no")
+                    REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/login_hanko && echo "yes" || echo "no")
+
+                    if [[ "$BRANCH_EXISTS" == "yes" ]]; then
+                        echo "  → Switching to login_hanko branch..."
+                        git checkout login_hanko 2>/dev/null
+                        echo "  ✓ $repo repo on login_hanko branch"
+                    elif [[ "$REMOTE_BRANCH_EXISTS" == "yes" ]]; then
+                        echo "  → Creating login_hanko branch from origin..."
+                        git checkout -b login_hanko origin/login_hanko 2>/dev/null
+                        echo "  ✓ $repo repo on login_hanko branch"
+                    else
+                        echo "  ⚠ login_hanko branch not found in $repo (staying on $(git branch --show-current))"
+                    fi
+                    cd ..
+                fi
             else
                 echo "  ✗ Failed to clone $repo"
                 exit 1
@@ -129,7 +162,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         exit 1
     fi
 else
-    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login)"
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr)"
     echo ""
 
     # Ensure portal and login repos are on develop branch
@@ -148,6 +181,42 @@ else
                 fi
                 echo ""
             fi
+            cd ../hot-dev-env
+        fi
+    done
+
+    # Ensure drone-tm, openaerialmap, and fAIr repos are on login_hanko branch
+    for repo in drone-tm openaerialmap fAIr; do
+        if [[ -d "../$repo" ]]; then
+            cd "../$repo"
+            CURRENT_BRANCH=$(git branch --show-current 2>/dev/null)
+
+            # Check if branch exists (local or remote)
+            BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/login_hanko && echo "yes" || echo "no")
+            REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/login_hanko && echo "yes" || echo "no")
+
+            if [[ "$CURRENT_BRANCH" == "login_hanko" ]]; then
+                echo "  ✓ $repo repo already on login_hanko branch"
+            elif [[ "$BRANCH_EXISTS" == "yes" ]]; then
+                echo "→ Switching $repo repo to login_hanko branch..."
+                git checkout login_hanko 2>/dev/null
+                if [[ $? -eq 0 ]]; then
+                    echo "  ✓ $repo repo now on login_hanko branch"
+                else
+                    echo "  ⚠ Could not switch $repo to login_hanko branch (current: $CURRENT_BRANCH)"
+                fi
+            elif [[ "$REMOTE_BRANCH_EXISTS" == "yes" ]]; then
+                echo "→ Creating login_hanko branch from origin in $repo..."
+                git checkout -b login_hanko origin/login_hanko 2>/dev/null
+                if [[ $? -eq 0 ]]; then
+                    echo "  ✓ $repo repo now on login_hanko branch"
+                else
+                    echo "  ⚠ Could not create login_hanko branch in $repo (current: $CURRENT_BRANCH)"
+                fi
+            else
+                echo "  ⚠ login_hanko branch not found in $repo repo (current: $CURRENT_BRANCH)"
+            fi
+            echo ""
             cd ../hot-dev-env
         fi
     done
@@ -194,6 +263,24 @@ else
     echo "  ✓ ../login/.env already exists"
 fi
 
+if [[ ! -f "../openaerialmap/.env" ]]; then
+    if [[ -f "../openaerialmap/.env.example" ]]; then
+        cp ../openaerialmap/.env.example ../openaerialmap/.env
+        echo "  ✓ Created ../openaerialmap/.env (please review and update)"
+    fi
+else
+    echo "  ✓ ../openaerialmap/.env already exists"
+fi
+
+if [[ ! -f "../fAIr/backend/.env" ]]; then
+    if [[ -f "../fAIr/backend/.env.example" ]]; then
+        cp ../fAIr/backend/.env.example ../fAIr/backend/.env
+        echo "  ✓ Created ../fAIr/backend/.env (please review and update)"
+    fi
+else
+    echo "  ✓ ../fAIr/backend/.env already exists"
+fi
+
 # Create hanko-config.yaml for login service
 echo ""
 echo "→ Setting up Hanko configuration file..."
@@ -226,6 +313,8 @@ echo "     - .env"
 echo "     - ../portal/.env"
 echo "     - ../login/.env"
 echo "     - ../drone-tm/.env"
+echo "     - ../openaerialmap/.env"
+echo "     - ../fAIr/backend/.env"
 echo ""
 echo "  2. Update Google OAuth credentials in:"
 echo "     - ../login/hanko-config.yaml"
@@ -238,9 +327,11 @@ echo "  4. Start development environment:"
 echo "     make dev"
 echo ""
 echo "URLs will be:"
-echo "  Portal:        https://portal.hotosm.test"
-echo "  Drone-TM:      https://dronetm.hotosm.test"
-echo "  Hanko Auth:    https://login.hotosm.test"
-echo "  MinIO Console: https://minio.hotosm.test"
-echo "  Traefik:       https://traefik.hotosm.test"
+echo "  Portal:          https://portal.hotosm.test"
+echo "  Drone-TM:        https://dronetm.hotosm.test"
+echo "  fAIr:            https://fair.hotosm.test"
+echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+echo "  Hanko Auth:      https://login.hotosm.test"
+echo "  MinIO Console:   https://minio.hotosm.test"
+echo "  Traefik:         https://traefik.hotosm.test"
 echo ""

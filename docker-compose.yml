@@ -1,5 +1,5 @@
 # HOTOSM Development Environment
-# Orchestrates Portal, Drone-TM, and shared services using path-based routing
+# Orchestrates Portal, Drone-TM, fAIr, OAM, and shared services using subdomain routing
 
 name: hotosm-dev
 
@@ -14,6 +14,9 @@ volumes:
   dronetm-db-data:
   dronetm-minio-data:
   dronetm-redis-data:
+  oam-db-data:
+  fair-db-data:
+  fair-redis-data:
 
 services:
   # ==========================================
@@ -100,6 +103,7 @@ services:
       - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
       - FRONTEND_URL=https://portal.hotosm.test
       - BACKEND_CORS_ORIGINS=["https://portal.hotosm.test","https://login.hotosm.test","https://dronetm.hotosm.test"]
+    command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     networks:
       - hotosm
     labels:
@@ -405,6 +409,11 @@ services:
       - dronetm-minio-data:/data
     networks:
       - hotosm
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     labels:
       - "traefik.enable=true"
       # MinIO Console
@@ -415,6 +424,24 @@ services:
       - "traefik.http.routers.minio-api.rule=Host(`minio.localhost`) && PathPrefix(`/api`)"
       - "traefik.http.routers.minio-api.service=minio-api"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+
+  # MinIO Init - Creates buckets on startup
+  minio-init:
+    image: minio/mc:latest
+    container_name: hotosm-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set minio http://minio:9000 dtm_user somelongpassword;
+      mc mb minio/dtm-bucket --ignore-existing;
+      mc anonymous set download minio/dtm-bucket;
+      echo 'Buckets created successfully';
+      "
+    networks:
+      - hotosm
 
   # Redis - Cache and task queue
   redis:
@@ -442,3 +469,199 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.nodeodm.rule=Host(`nodeodm.localhost`)"
       - "traefik.http.services.nodeodm.loadbalancer.server.port=3000"
+
+  # ==========================================
+  # OpenAerialMap - Imagery Catalog & Browser
+  # ==========================================
+
+  # OAM Frontend (React + Vite)
+  oam-frontend:
+    build:
+      context: ../openaerialmap/frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: hotosm-oam-frontend
+    volumes:
+      - ../openaerialmap/frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_HANKO_URL=https://login.hotosm.test
+      - VITE_LOGIN_URL=https://login.hotosm.test
+      - VITE_API_URL=https://openaerialmap.hotosm.test/api
+      - VITE_STAC_API_URL=https://openaerialmap.hotosm.test
+      - VITE_STAC_API_PATHNAME=api
+      - VITE_STAC_TILER_PATHNAME=api/raster
+      - VITE_STAC_ITEMS_LIMIT=40
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oam-frontend.rule=Host(`openaerialmap.hotosm.test`)"
+      - "traefik.http.routers.oam-frontend.entrypoints=websecure"
+      - "traefik.http.routers.oam-frontend.tls=true"
+      - "traefik.http.routers.oam-frontend.priority=1"
+      - "traefik.http.services.oam-frontend.loadbalancer.server.port=9000"
+    depends_on:
+      - oam-backend
+
+  # OAM Backend (FastAPI STAC API)
+  oam-backend:
+    build:
+      context: ../openaerialmap/backend/stac-api
+      dockerfile: Dockerfile
+    container_name: hotosm-oam-backend
+    volumes:
+      - ../openaerialmap/backend/stac-api:/app
+      - /app/.venv
+    environment:
+      # Database configuration (stac-fastapi-pgstac format)
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=postgres
+      - POSTGRES_DBNAME=postgres
+      - POSTGRES_HOST_READER=oam-db
+      - POSTGRES_HOST_WRITER=oam-db
+      - POSTGRES_PORT=5432
+      # FastAPI configuration
+      - ROOT_PATH=/api
+      # Auth configuration
+      - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - COOKIE_SECURE=true
+      - COOKIE_SAMESITE=none
+      - OSM_CLIENT_ID=${OSM_CLIENT_ID}
+      - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
+      - AUTH_PROVIDER=hanko
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oam-backend.rule=Host(`openaerialmap.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.oam-backend.entrypoints=websecure"
+      - "traefik.http.routers.oam-backend.tls=true"
+      - "traefik.http.routers.oam-backend.priority=10"
+      - "traefik.http.services.oam-backend.loadbalancer.server.port=8080"
+    depends_on:
+      oam-db:
+        condition: service_healthy
+
+  # OAM Database (PostgreSQL + pgSTAC)
+  oam-db:
+    image: ghcr.io/stac-utils/pgstac:v0.9.3
+    container_name: hotosm-oam-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - oam-db-data:/var/lib/postgresql/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # fAIr - AI Assisted Mapping
+  # ==========================================
+
+  # fAIr Frontend (React + Vite)
+  fair-frontend:
+    build:
+      context: ../fAIr/frontend
+      dockerfile: Dockerfile.dev
+    container_name: hotosm-fair-frontend
+    volumes:
+      - ../fAIr/frontend/src:/app/src
+      - ../fAIr/frontend/public:/app/public
+      - ../fAIr/frontend/auth-libs:/app/auth-libs
+      - ../fAIr/frontend/index.html:/app/index.html
+      - ../fAIr/frontend/package.json:/app/package.json
+      - ../fAIr/frontend/pnpm-lock.yaml:/app/pnpm-lock.yaml
+    environment:
+      - VITE_AUTH_PROVIDER=hanko
+      - VITE_HANKO_API_URL=https://login.hotosm.test
+      - VITE_LOGIN_URL=https://login.hotosm.test
+      - VITE_BASE_API_URL=https://fair.hotosm.test/api/v1/
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fair-frontend.rule=Host(`fair.hotosm.test`)"
+      - "traefik.http.routers.fair-frontend.entrypoints=websecure"
+      - "traefik.http.routers.fair-frontend.tls=true"
+      - "traefik.http.services.fair-frontend.loadbalancer.server.port=3000"
+    depends_on:
+      - fair-backend
+
+  # fAIr Backend (Django)
+  fair-backend:
+    build:
+      context: ../fAIr/backend
+      dockerfile: Dockerfile.API
+    container_name: hotosm-fair-backend
+    volumes:
+      - ../fAIr/backend:/app
+      - /app/.venv  # Preserve .venv from build
+    environment:
+      - DATABASE_URL=postgis://fair:fair@fair-db:5432/fair
+      - AUTH_PROVIDER=hanko
+      - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - REDIS_URL=redis://fair-redis:6379
+      - DEBUG=True
+      - ALLOWED_HOSTS=fair.hotosm.test,localhost
+      - CORS_ALLOWED_ORIGINS=https://fair.hotosm.test,https://login.hotosm.test
+      - FRONTEND_URL=https://fair.hotosm.test
+      - LOGIN_URL=https://login.hotosm.test
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fair-backend.rule=Host(`fair.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.fair-backend.entrypoints=websecure"
+      - "traefik.http.routers.fair-backend.tls=true"
+      - "traefik.http.services.fair-backend.loadbalancer.server.port=8000"
+    depends_on:
+      fair-db:
+        condition: service_healthy
+      fair-redis:
+        condition: service_healthy
+
+  # fAIr Database (PostgreSQL + PostGIS)
+  fair-db:
+    image: postgis/postgis:16-3.4
+    container_name: hotosm-fair-db
+    environment:
+      - POSTGRES_USER=fair
+      - POSTGRES_PASSWORD=fair
+      - POSTGRES_DB=fair
+    volumes:
+      - fair-db-data:/var/lib/postgresql/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fair"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # fAIr Redis (for Celery/Django-Q)
+  fair-redis:
+    image: redis:7-alpine
+    container_name: hotosm-fair-redis
+    volumes:
+      - fair-redis-data:/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

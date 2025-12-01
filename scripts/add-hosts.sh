@@ -16,6 +16,8 @@ fi
 HOSTS_ENTRIES=(
     "127.0.0.1 portal.hotosm.test"
     "127.0.0.1 dronetm.hotosm.test"
+    "127.0.0.1 fair.hotosm.test"
+    "127.0.0.1 openaerialmap.hotosm.test"
     "127.0.0.1 login.hotosm.test"
     "127.0.0.1 minio.hotosm.test"
     "127.0.0.1 traefik.hotosm.test"
@@ -24,8 +26,19 @@ HOSTS_ENTRIES=(
 MISSING_ENTRIES=()
 
 for entry in "${HOSTS_ENTRIES[@]}"; do
-    if ! grep -q "$entry" "$HOSTS_FILE" 2>/dev/null; then
-        MISSING_ENTRIES+=("$entry")
+    # Extract just the hostname (second part after the IP)
+    hostname=$(echo "$entry" | awk '{print $2}')
+
+    # Check if hostname exists in hosts file (with sudo if needed on Linux/macOS)
+    if [[ "$IS_WINDOWS" = false ]]; then
+        if ! sudo grep -q "$hostname" "$HOSTS_FILE" 2>/dev/null; then
+            MISSING_ENTRIES+=("$entry")
+        fi
+    else
+        # Windows - no sudo needed
+        if ! grep -q "$hostname" "$HOSTS_FILE" 2>/dev/null; then
+            MISSING_ENTRIES+=("$entry")
+        fi
     fi
 done
 
