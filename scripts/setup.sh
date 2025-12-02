@@ -126,23 +126,43 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
                     echo "  ✓ $repo repo on develop branch"
                 fi
 
-                # Switch drone-tm and openaerialmap repos to login_hanko branch
-                if [[ "$repo" == "drone-tm" ]] || [[ "$repo" == "openaerialmap" ]]; then
+                # Switch drone-tm to login-hanko branch, openaerialmap to login_hanko branch
+                if [[ "$repo" == "drone-tm" ]]; then
                     cd "$repo"
-                    # Check if branch exists (local or remote)
-                    BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/login_hanko && echo "yes" || echo "no")
-                    REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/login_hanko && echo "yes" || echo "no")
+                    BRANCH_NAME="login-hanko"
+                    BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/$BRANCH_NAME && echo "yes" || echo "no")
+                    REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME && echo "yes" || echo "no")
 
                     if [[ "$BRANCH_EXISTS" == "yes" ]]; then
-                        echo "  → Switching to login_hanko branch..."
-                        git checkout login_hanko 2>/dev/null
-                        echo "  ✓ $repo repo on login_hanko branch"
+                        echo "  → Switching to $BRANCH_NAME branch..."
+                        git checkout $BRANCH_NAME 2>/dev/null
+                        echo "  ✓ $repo repo on $BRANCH_NAME branch"
                     elif [[ "$REMOTE_BRANCH_EXISTS" == "yes" ]]; then
-                        echo "  → Creating login_hanko branch from origin..."
-                        git checkout -b login_hanko origin/login_hanko 2>/dev/null
-                        echo "  ✓ $repo repo on login_hanko branch"
+                        echo "  → Creating $BRANCH_NAME branch from origin..."
+                        git checkout -b $BRANCH_NAME origin/$BRANCH_NAME 2>/dev/null
+                        echo "  ✓ $repo repo on $BRANCH_NAME branch"
                     else
-                        echo "  ⚠ login_hanko branch not found in $repo (staying on $(git branch --show-current))"
+                        echo "  ⚠ $BRANCH_NAME branch not found in $repo (staying on $(git branch --show-current))"
+                    fi
+                    cd ..
+                fi
+
+                if [[ "$repo" == "openaerialmap" ]]; then
+                    cd "$repo"
+                    BRANCH_NAME="login_hanko"
+                    BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/$BRANCH_NAME && echo "yes" || echo "no")
+                    REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME && echo "yes" || echo "no")
+
+                    if [[ "$BRANCH_EXISTS" == "yes" ]]; then
+                        echo "  → Switching to $BRANCH_NAME branch..."
+                        git checkout $BRANCH_NAME 2>/dev/null
+                        echo "  ✓ $repo repo on $BRANCH_NAME branch"
+                    elif [[ "$REMOTE_BRANCH_EXISTS" == "yes" ]]; then
+                        echo "  → Creating $BRANCH_NAME branch from origin..."
+                        git checkout -b $BRANCH_NAME origin/$BRANCH_NAME 2>/dev/null
+                        echo "  ✓ $repo repo on $BRANCH_NAME branch"
+                    else
+                        echo "  ⚠ $BRANCH_NAME branch not found in $repo (staying on $(git branch --show-current))"
                     fi
                     cd ..
                 fi
@@ -185,36 +205,44 @@ else
         fi
     done
 
-    # Ensure drone-tm, openaerialmap, and fAIr repos are on login_hanko branch
+    # Ensure drone-tm, openaerialmap, and fAIr repos are on their dev branches
+    # drone-tm uses login-hanko, others use login_hanko
     for repo in drone-tm openaerialmap fAIr; do
         if [[ -d "../$repo" ]]; then
             cd "../$repo"
             CURRENT_BRANCH=$(git branch --show-current 2>/dev/null)
 
-            # Check if branch exists (local or remote)
-            BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/login_hanko && echo "yes" || echo "no")
-            REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/login_hanko && echo "yes" || echo "no")
+            # drone-tm uses login-hanko, others use login_hanko
+            if [[ "$repo" == "drone-tm" ]]; then
+                BRANCH_NAME="login-hanko"
+            else
+                BRANCH_NAME="login_hanko"
+            fi
 
-            if [[ "$CURRENT_BRANCH" == "login_hanko" ]]; then
-                echo "  ✓ $repo repo already on login_hanko branch"
+            # Check if branch exists (local or remote)
+            BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/$BRANCH_NAME && echo "yes" || echo "no")
+            REMOTE_BRANCH_EXISTS=$(git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME && echo "yes" || echo "no")
+
+            if [[ "$CURRENT_BRANCH" == "$BRANCH_NAME" ]]; then
+                echo "  ✓ $repo repo already on $BRANCH_NAME branch"
             elif [[ "$BRANCH_EXISTS" == "yes" ]]; then
-                echo "→ Switching $repo repo to login_hanko branch..."
-                git checkout login_hanko 2>/dev/null
+                echo "→ Switching $repo repo to $BRANCH_NAME branch..."
+                git checkout $BRANCH_NAME 2>/dev/null
                 if [[ $? -eq 0 ]]; then
-                    echo "  ✓ $repo repo now on login_hanko branch"
+                    echo "  ✓ $repo repo now on $BRANCH_NAME branch"
                 else
-                    echo "  ⚠ Could not switch $repo to login_hanko branch (current: $CURRENT_BRANCH)"
+                    echo "  ⚠ Could not switch $repo to $BRANCH_NAME branch (current: $CURRENT_BRANCH)"
                 fi
             elif [[ "$REMOTE_BRANCH_EXISTS" == "yes" ]]; then
-                echo "→ Creating login_hanko branch from origin in $repo..."
-                git checkout -b login_hanko origin/login_hanko 2>/dev/null
+                echo "→ Creating $BRANCH_NAME branch from origin in $repo..."
+                git checkout -b $BRANCH_NAME origin/$BRANCH_NAME 2>/dev/null
                 if [[ $? -eq 0 ]]; then
-                    echo "  ✓ $repo repo now on login_hanko branch"
+                    echo "  ✓ $repo repo now on $BRANCH_NAME branch"
                 else
-                    echo "  ⚠ Could not create login_hanko branch in $repo (current: $CURRENT_BRANCH)"
+                    echo "  ⚠ Could not create $BRANCH_NAME branch in $repo (current: $CURRENT_BRANCH)"
                 fi
             else
-                echo "  ⚠ login_hanko branch not found in $repo repo (current: $CURRENT_BRANCH)"
+                echo "  ⚠ $BRANCH_NAME branch not found in $repo repo (current: $CURRENT_BRANCH)"
             fi
             echo ""
             cd ../hot-dev-env
