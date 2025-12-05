@@ -246,6 +246,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
             "fair.hotosm.test"
             "openaerialmap.hotosm.test"
             "minio.hotosm.test"
+            "s3.hotosm.test"
             "traefik.hotosm.test"
         )
 
