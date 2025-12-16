@@ -232,34 +232,8 @@ read -p "Configure /etc/hosts for *.hotosm.test domains? (y/N): " -n 1 -r
 echo
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Check if script exists
-    if [ -f "$ROOT_DIR/add-local-domains.sh" ]; then
-        "$ROOT_DIR/add-local-domains.sh"
-    else
-        echo ""
-        echo -e "${YELLOW}ℹ  add-local-domains.sh not found. Adding domains manually...${NC}"
-
-        DOMAINS=(
-            "portal.hotosm.test"
-            "login.hotosm.test"
-            "dronetm.hotosm.test"
-            "fair.hotosm.test"
-            "openaerialmap.hotosm.test"
-            "minio.hotosm.test"
-            "s3.hotosm.test"
-            "traefik.hotosm.test"
-        )
-
-        echo ""
-        echo "Add these lines to /etc/hosts:"
-        echo ""
-        for domain in "${DOMAINS[@]}"; do
-            echo "127.0.0.1 $domain"
-        done
-        echo ""
-        echo "Run this command:"
-        echo -e "${BLUE}sudo nano /etc/hosts${NC}"
-    fi
+    # Use the updated add-hosts.sh script
+    "$SCRIPT_DIR/add-hosts.sh"
 fi
 
 echo ""

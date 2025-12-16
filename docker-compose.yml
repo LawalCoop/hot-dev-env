@@ -285,6 +285,19 @@ services:
       timeout: 5s
       retries: 5
 
+  # Mailslurper - Email catcher for development (captures all emails without sending)
+  mailslurper:
+    image: oryd/mailslurper:latest-smtps
+    container_name: hotosm-mailslurper
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mail.rule=Host(`mail.hotosm.test`)"
+      - "traefik.http.routers.mail.entrypoints=websecure"
+      - "traefik.http.routers.mail.tls=true"
+      - "traefik.http.services.mail.loadbalancer.server.port=4436"
+
   # ==========================================
   # Drone-TM - Drone Tasking Manager
   # ==========================================
@@ -586,6 +599,9 @@ services:
       - ../fAIr/frontend/index.html:/app/index.html
       - ../fAIr/frontend/package.json:/app/package.json
       - ../fAIr/frontend/pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ../fAIr/frontend/tsconfig.json:/app/tsconfig.json
+      - ../fAIr/frontend/tsconfig.app.json:/app/tsconfig.app.json
+      - ../fAIr/frontend/vite.config.mts:/app/vite.config.mts
     environment:
       - VITE_AUTH_PROVIDER=hanko
       - VITE_HANKO_API_URL=https://login.hotosm.test
@@ -619,6 +635,8 @@ services:
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
       - REDIS_URL=redis://fair-redis:6379
+      - CELERY_BROKER_URL=redis://fair-redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://fair-redis:6379/0
       - DEBUG=True
       - ALLOWED_HOSTS=fair.hotosm.test,localhost
       - CORS_ALLOWED_ORIGINS=https://fair.hotosm.test,https://login.hotosm.test
