@@ -1,0 +1,95 @@
+server:
+  public:
+    address: ":8000"
+    cors:
+      allow_origins:
+        - "https://portal.hotosm.test"
+        - "https://login.hotosm.test"
+        - "https://dronetm.hotosm.test"
+        - "https://fair.hotosm.test"
+        - "https://openaerialmap.hotosm.test"
+      allow_credentials: true
+      unsafe_wildcard_origin_allowed: true
+
+database:
+  database: hanko
+  user: hanko
+  password: hanko
+  host: hanko-db
+  port: 5432
+
+secrets:
+  keys:
+    - "abcdefghijklmnopqrstuvwxyz123456"
+
+service:
+  name: "HOTOSM Portal (Dev)"
+
+webauthn:
+  enabled: false
+  relying_party:
+    id: "hotosm.test"
+    display_name: "HOTOSM Portal"
+    origins:
+      - "https://portal.hotosm.test"
+      - "https://login.hotosm.test"
+      - "https://dronetm.hotosm.test"
+      - "https://fair.hotosm.test"
+      - "https://openaerialmap.hotosm.test"
+
+email:
+  require_verification: true
+
+passcode:
+  enabled: true
+  ttl: 300
+
+password:
+  enabled: true
+  min_length: 8
+  recovery: true
+
+email_delivery:
+  enabled: true
+  smtp:
+    host: "mailslurper"
+    port: 2500
+  from_address: "noreply@hotosm.test"
+  from_name: "HOTOSM (Dev)"
+
+session:
+  lifespan: 1h
+  issuer: "https://login.hotosm.test"
+  audience:
+    - "https://portal.hotosm.test"
+    - "https://login.hotosm.test"
+    - "https://dronetm.hotosm.test"
+    - "https://fair.hotosm.test"
+    - "https://openaerialmap.hotosm.test"
+  cookie:
+    name: "hanko"
+    domain: ".hotosm.test"
+    http_only: true
+    same_site: lax
+    secure: true
+
+third_party:
+  redirect_url: "https://login.hotosm.test/app/thirdparty/callback"
+  error_redirect_url: "https://login.hotosm.test/app/error"
+  allowed_redirect_urls:
+    - "https://portal.hotosm.test/**"
+    - "https://login.hotosm.test/**"
+    - "https://dronetm.hotosm.test/**"
+    - "https://fair.hotosm.test/**"
+    - "https://openaerialmap.hotosm.test/**"
+  cookie:
+    domain: ".hotosm.test"
+    http_only: true
+    same_site: lax
+    secure: true
+  providers:
+    google:
+      enabled: true
+      client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+      secret: "YOUR_GOOGLE_CLIENT_SECRET"
+      allow_linking: true

@@ -25,4 +25,6 @@ certs/
 
 # Temporary config files
 traefik-tls.yml
-hanko-config.yaml
+/hanko-config.yaml
+# But keep config/ folder tracked
+!config/

@@ -309,21 +309,6 @@ else
     echo "  ✓ ../fAIr/backend/.env already exists"
 fi
 
-# Create hanko-config.yaml for login service
-echo ""
-echo "→ Setting up Hanko configuration file..."
-
-if [[ ! -f "../login/hanko-config.yaml" ]]; then
-    if [[ -f "../login/hanko-config.yaml.example" ]]; then
-        cp ../login/hanko-config.yaml.example ../login/hanko-config.yaml
-        echo "  ✓ Created ../login/hanko-config.yaml (please update Google OAuth credentials)"
-    else
-        echo "  ⚠ ../login/hanko-config.yaml.example not found"
-    fi
-else
-    echo "  ✓ ../login/hanko-config.yaml already exists"
-fi
-
 echo ""
 
 # Configure /etc/hosts
@@ -344,8 +329,8 @@ echo "     - ../drone-tm/.env"
 echo "     - ../openaerialmap/.env"
 echo "     - ../fAIr/backend/.env"
 echo ""
-echo "  2. Update Google OAuth credentials in:"
-echo "     - ../login/hanko-config.yaml"
+echo "  2. (Optional) Update Google OAuth credentials in:"
+echo "     - ./config/hanko-config.yaml"
 echo "     (Replace YOUR_GOOGLE_CLIENT_ID and YOUR_GOOGLE_CLIENT_SECRET)"
 echo ""
 echo "  3. Install dependencies:"

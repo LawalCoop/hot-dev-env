@@ -216,7 +216,7 @@ services:
     image: ghcr.io/teamhanko/hanko:latest
     container_name: hotosm-hanko-migrate
     volumes:
-      - ../login/hanko-config.yaml:/etc/config/.config.yaml:ro
+      - ./config/hanko-config.yaml:/etc/config/.config.yaml:ro
     command: migrate up --config /etc/config/.config.yaml
     environment:
       - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
@@ -231,7 +231,7 @@ services:
     image: ghcr.io/teamhanko/hanko:latest
     container_name: hotosm-hanko
     volumes:
-      - ../login/hanko-config.yaml:/etc/config/.config.yaml:ro
+      - ./config/hanko-config.yaml:/etc/config/.config.yaml:ro
     command: serve --config /etc/config/.config.yaml public
     environment:
       - DATABASE_URL=postgres://hanko:hanko@hanko-db:5432/hanko?sslmode=disable
