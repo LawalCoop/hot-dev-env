@@ -372,9 +372,10 @@ services:
       - DEBUG=true
       - LOG_LEVEL=DEBUG
       - ADMIN_EMAILS=hernangigena@gmail.com
+      - EXTRA_CORS_ORIGINS=https://dronetm.hotosm.test,https://login.hotosm.test
     command: >
       sh -c "rm -rf /opt/python/lib/python3.11/site-packages/hotosm_auth* 2>/dev/null;
-             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.1.5-py3-none-any.whl &&
+             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.1.7-py3-none-any.whl &&
              alembic upgrade heads &&
              uvicorn app.main:api --host 0.0.0.0 --port 8000 --log-level info --reload"
     networks:
@@ -653,7 +654,7 @@ services:
       - LOGIN_URL=https://login.hotosm.test
       - ADMIN_EMAILS=hernangigena@gmail.com
     command: >
-      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.1.5-py3-none-any.whl &&
+      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.1.7-py3-none-any.whl &&
              python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     networks:

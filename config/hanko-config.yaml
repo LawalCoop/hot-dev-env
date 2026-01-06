@@ -70,7 +70,7 @@ session:
     name: "hanko"
     domain: ".hotosm.test"
     http_only: true
-    same_site: lax
+    same_site: none
     secure: true
 
 third_party:
@@ -85,7 +85,7 @@ third_party:
   cookie:
     domain: ".hotosm.test"
     http_only: true
-    same_site: lax
+    same_site: none
     secure: true
   providers:
     google:
