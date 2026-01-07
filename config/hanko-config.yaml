@@ -52,8 +52,8 @@ password:
 email_delivery:
   enabled: true
   smtp:
-    host: "mailslurper"
-    port: 2500
+    host: "mailhog"
+    port: 1025
   from_address: "noreply@hotosm.test"
   from_name: "HOTOSM (Dev)"
 

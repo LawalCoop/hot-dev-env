@@ -95,6 +95,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://portal:portal@portal-db:5432/portal
       - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
       - COOKIE_SECURE=true
@@ -104,6 +105,12 @@ services:
       - FRONTEND_URL=https://portal.hotosm.test
       - BACKEND_CORS_ORIGINS=["https://portal.hotosm.test","https://login.hotosm.test","https://dronetm.hotosm.test"]
       - ADMIN_EMAILS=${ADMIN_EMAILS:-admin@hotosm.org}
+      - DRONE_TM_BACKEND_URL=https://dronetm.hotosm.test/api
+      - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
+    extra_hosts:
+      - "dronetm.hotosm.test:host-gateway"
+      - "fair.hotosm.test:host-gateway"
+      - "login.hotosm.test:host-gateway"
     command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     networks:
       - hotosm
@@ -256,7 +263,7 @@ services:
       - "traefik.http.routers.hanko-wellknown.tls=true"
       - "traefik.http.routers.hanko-wellknown.priority=50"
       - "traefik.http.routers.hanko-wellknown.service=hanko"
-      - "traefik.http.routers.hanko-api.rule=Host(`login.hotosm.test`) && (PathPrefix(`/registration`) || PathPrefix(`/logout`) || PathPrefix(`/sessions`) || PathPrefix(`/users`) || PathPrefix(`/passcode`) || PathPrefix(`/webauthn`) || PathPrefix(`/token`) || PathPrefix(`/thirdparty`))"
+      - "traefik.http.routers.hanko-api.rule=Host(`login.hotosm.test`) && (PathPrefix(`/registration`) || PathPrefix(`/logout`) || PathPrefix(`/sessions`) || PathPrefix(`/users`) || PathPrefix(`/passcode`) || PathPrefix(`/webauthn`) || PathPrefix(`/token`) || PathPrefix(`/thirdparty`) || PathPrefix(`/profile`) || PathPrefix(`/emails`) || PathPrefix(`/password`) || PathPrefix(`/me`) || PathPrefix(`/flow`))"
       - "traefik.http.routers.hanko-api.entrypoints=websecure"
       - "traefik.http.routers.hanko-api.tls=true"
       - "traefik.http.routers.hanko-api.priority=10"
@@ -291,10 +298,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # Mailslurper - Email catcher for development (captures all emails without sending)
-  mailslurper:
-    image: oryd/mailslurper:latest-smtps
-    container_name: hotosm-mailslurper
+  # Mailhog - Email catcher for development (captures all emails without sending)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: hotosm-mailhog
     networks:
       - hotosm
     labels:
@@ -302,7 +309,7 @@ services:
       - "traefik.http.routers.mail.rule=Host(`mail.hotosm.test`)"
       - "traefik.http.routers.mail.entrypoints=websecure"
       - "traefik.http.routers.mail.tls=true"
-      - "traefik.http.services.mail.loadbalancer.server.port=4436"
+      - "traefik.http.services.mail.loadbalancer.server.port=8025"
 
   # ==========================================
   # Drone-TM - Drone Tasking Manager
@@ -386,16 +393,11 @@ services:
       - "traefik.http.routers.dronetm-backend.rule=Host(`dronetm.hotosm.test`) && PathPrefix(`/api`)"
       - "traefik.http.routers.dronetm-backend.entrypoints=websecure"
       - "traefik.http.routers.dronetm-backend.tls=true"
-      # Portal integration: Route /api/drone-tm from portal.hotosm.test to dronetm-backend
-      - "traefik.http.routers.dronetm-backend-portal.rule=Host(`portal.hotosm.test`) && PathPrefix(`/api/drone-tm`)"
-      - "traefik.http.routers.dronetm-backend-portal.entrypoints=websecure"
-      - "traefik.http.routers.dronetm-backend-portal.tls=true"
-      - "traefik.http.routers.dronetm-backend-portal.priority=100"
-      - "traefik.http.routers.dronetm-backend-portal.service=dronetm-backend"
-      - "traefik.http.routers.dronetm-backend-portal.middlewares=dronetm-portal-rewrite"
-      # Middleware to rewrite /api/drone-tm/* to /api/*
-      - "traefik.http.middlewares.dronetm-portal-rewrite.replacepathregex.regex=^/api/drone-tm/(.*)"
-      - "traefik.http.middlewares.dronetm-portal-rewrite.replacepathregex.replacement=/api/$$1"
+      - "traefik.http.routers.dronetm-backend.middlewares=dronetm-strip-api"
+      # Middleware to strip /api prefix before forwarding to backend
+      - "traefik.http.middlewares.dronetm-strip-api.stripprefix.prefixes=/api"
+      # Note: Portal integration routes (/api/drone-tasking-manager/*) are handled by portal-backend
+      # which proxies to drone-tm with proper URL translation (e.g., /projects/user -> /projects/?filter_by_owner=true)
       # Service configuration
       - "traefik.http.services.dronetm-backend.loadbalancer.server.port=8000"
     depends_on:
@@ -451,7 +453,14 @@ services:
       - "traefik.http.routers.minio-api.entrypoints=websecure"
       - "traefik.http.routers.minio-api.tls=true"
       - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.routers.minio-api.middlewares=minio-cors"
       - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+      # CORS headers for S3 API
+      - "traefik.http.middlewares.minio-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,HEAD"
+      - "traefik.http.middlewares.minio-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.minio-cors.headers.accesscontrolalloworiginlist=https://dronetm.hotosm.test,https://portal.hotosm.test,https://fair.hotosm.test"
+      - "traefik.http.middlewares.minio-cors.headers.accesscontrolmaxage=100"
+      - "traefik.http.middlewares.minio-cors.headers.addvaryheader=true"
 
   # MinIO Init - Creates buckets on startup
   minio-init:

@@ -19,6 +19,7 @@ HOSTS_ENTRIES=(
     "127.0.0.1 fair.hotosm.test"
     "127.0.0.1 openaerialmap.hotosm.test"
     "127.0.0.1 login.hotosm.test"
+    "127.0.0.1 mail.hotosm.test"
     "127.0.0.1 minio.hotosm.test"
     "127.0.0.1 s3.hotosm.test"
     "127.0.0.1 traefik.hotosm.test"
