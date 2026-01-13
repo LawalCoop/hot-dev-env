@@ -190,6 +190,7 @@ if [ -f "$CERTS_DIR/localhost.crt" ] && [ -f "$CERTS_DIR/localhost.key" ]; then
         echo -e "  ${GREEN}https://dronetm.hotosm.test${NC}"
         echo -e "  ${GREEN}https://fair.hotosm.test${NC}"
         echo -e "  ${GREEN}https://openaerialmap.hotosm.test${NC}"
+        echo -e "  ${GREEN}https://chatmap.hotosm.test${NC}"
         echo ""
         exit 0
     fi
@@ -254,6 +255,7 @@ echo -e "   ${GREEN}https://login.hotosm.test${NC}             - Login & authent
 echo -e "   ${GREEN}https://dronetm.hotosm.test${NC}           - Drone Tasking Manager"
 echo -e "   ${GREEN}https://fair.hotosm.test${NC}              - fAIr (AI-assisted mapping)"
 echo -e "   ${GREEN}https://openaerialmap.hotosm.test${NC}     - OpenAerialMap"
+echo -e "   ${GREEN}https://chatmap.hotosm.test${NC}           - ChatMap"
 echo ""
 echo "   Infrastructure (.hotosm.test):"
 echo -e "   ${GREEN}https://minio.hotosm.test${NC}        - S3 storage console"

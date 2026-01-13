@@ -24,6 +24,7 @@ help:
 	@echo "  make dev-login      - Start Login only (requires frontend/backend)"
 	@echo "  make dev-dronetm    - Start Drone-TM only"
 	@echo "  make dev-oam        - Start OpenAerialMap only"
+	@echo "  make dev-chatmap    - Start ChatMap only"
 	@echo ""
 	@echo "Management:"
 	@echo "  make stop           - Stop all services"
@@ -48,6 +49,7 @@ help:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -95,7 +97,7 @@ install:
 	@cd ../drone-tm/src/frontend && pnpm install
 	@echo ""
 	@echo "→ Drone-TM backend..."
-	@cd ../drone-tm/src/backend && uv sync
+	@cd ../drone-tm/src/backend && uv sync || echo "   ⚠ GDAL no disponible localmente (OK - corre en Docker)"
 	@echo ""
 	@echo "→ OpenAerialMap frontend..."
 	@cd ../openaerialmap/frontend && pnpm install
@@ -108,6 +110,11 @@ install:
 	@echo ""
 	@echo "→ fAIr backend..."
 	@cd ../fAIr/backend && uv sync
+	@echo ""
+	@if [ -d "../chatmap/chatmap-ui" ]; then \
+		echo "→ ChatMap frontend..."; \
+		cd ../chatmap/chatmap-ui && yarn install; \
+	fi
 	@echo ""
 	@echo "✓ All dependencies installed"
 	@echo ""
@@ -144,6 +151,7 @@ dev:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -175,6 +183,10 @@ dev-dronetm:
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
 	docker compose up oam-frontend oam-backend oam-db hanko hanko-db --build
+
+dev-chatmap:
+	@echo "Starting ChatMap services..."
+	docker compose up chatmap-frontend hanko hanko-db --build
 
 # ==================
 # Management
@@ -216,6 +228,9 @@ health:
 	@curl -f -s https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@curl -f -s https://fair.hotosm.test/api/v1/ > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
+	@echo "ChatMap:"
+	@curl -f -s https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@echo ""
 	@echo "Shared:"
 	@curl -f -s https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
 	@curl -f -s https://minio.hotosm.test > /dev/null && echo "  ✓ MinIO Console" || echo "  ✗ MinIO Console"
@@ -244,6 +259,7 @@ update:
 	@cd ../drone-tm && git pull && echo "  ✓ Drone-TM"
 	@cd ../fAIr && git pull && echo "  ✓ fAIr"
 	@cd ../openaerialmap && git pull && echo "  ✓ OpenAerialMap"
+	@cd ../chatmap && git pull && echo "  ✓ ChatMap"
 	@cd ../auth-libs && git pull && echo "  ✓ Auth-libs"
 	@echo ""
 	@echo "✓ Updated. Run 'make install' if dependencies changed."

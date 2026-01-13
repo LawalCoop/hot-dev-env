@@ -48,6 +48,7 @@ declare -A REPO_URLS=(
     ["login"]="https://github.com/hotosm/login.git"
     ["openaerialmap"]="https://github.com/hotosm/openaerialmap.git"
     ["fAIr"]="https://github.com/hotosm/fAIr.git"
+    ["chatmap"]="https://github.com/hotosm/chatmap.git"
 )
 
 declare -A REPO_URLS_SSH=(
@@ -57,6 +58,7 @@ declare -A REPO_URLS_SSH=(
     ["login"]="git@github.com:hotosm/login.git"
     ["openaerialmap"]="git@github.com:hotosm/openaerialmap.git"
     ["fAIr"]="git@github.com:hotosm/fAIr.git"
+    ["chatmap"]="git@github.com:hotosm/chatmap.git"
 )
 
 if [[ ! -d "../portal" ]]; then
@@ -81,6 +83,10 @@ fi
 
 if [[ ! -d "../fAIr" ]]; then
     MISSING_REPOS+=("fAIr")
+fi
+
+if [[ ! -d "../chatmap" ]]; then
+    MISSING_REPOS+=("chatmap")
 fi
 
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
@@ -124,6 +130,16 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
                     git checkout develop
                     cd ..
                     echo "  ✓ $repo repo on develop branch"
+                fi
+
+                # Switch chatmap to feature/hotosm-auth branch
+                if [[ "$repo" == "chatmap" ]]; then
+                    cd "$repo"
+                    BRANCH_NAME="feature/hotosm-auth"
+                    echo "  → Switching to $BRANCH_NAME branch..."
+                    git checkout -b $BRANCH_NAME origin/$BRANCH_NAME 2>/dev/null || git checkout $BRANCH_NAME
+                    cd ..
+                    echo "  ✓ $repo repo on $BRANCH_NAME branch"
                 fi
 
                 # Switch drone-tm to login-hanko branch, openaerialmap to login_hanko branch
@@ -182,7 +198,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         exit 1
     fi
 else
-    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr)"
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, chatmap)"
     echo ""
 
     # Ensure portal and login repos are on develop branch
@@ -205,16 +221,18 @@ else
         fi
     done
 
-    # Ensure drone-tm, openaerialmap, and fAIr repos are on their dev branches
-    # drone-tm uses login-hanko, others use login_hanko
-    for repo in drone-tm openaerialmap fAIr; do
+    # Ensure drone-tm, openaerialmap, fAIr, and chatmap repos are on their dev branches
+    # drone-tm uses login-hanko, chatmap uses feature/hotosm-auth, others use login_hanko
+    for repo in drone-tm openaerialmap fAIr chatmap; do
         if [[ -d "../$repo" ]]; then
             cd "../$repo"
             CURRENT_BRANCH=$(git branch --show-current 2>/dev/null)
 
-            # drone-tm uses login-hanko, others use login_hanko
+            # Each repo has its own branch convention
             if [[ "$repo" == "drone-tm" ]]; then
                 BRANCH_NAME="login-hanko"
+            elif [[ "$repo" == "chatmap" ]]; then
+                BRANCH_NAME="feature/hotosm-auth"
             else
                 BRANCH_NAME="login_hanko"
             fi
@@ -344,6 +362,7 @@ echo "  Portal:          https://portal.hotosm.test"
 echo "  Drone-TM:        https://dronetm.hotosm.test"
 echo "  fAIr:            https://fair.hotosm.test"
 echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+echo "  ChatMap:         https://chatmap.hotosm.test"
 echo "  Hanko Auth:      https://login.hotosm.test"
 echo "  MinIO Console:   https://minio.hotosm.test"
 echo "  Traefik:         https://traefik.hotosm.test"

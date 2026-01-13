@@ -708,3 +708,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ==========================================
+  # ChatMap - Chat to Map Converter
+  # ==========================================
+
+  # ChatMap Frontend (React + Vite)
+  chatmap-frontend:
+    build:
+      context: ../
+      dockerfile: chatmap/chatmap-ui/Dockerfile.dev
+      target: development
+    container_name: hotosm-chatmap-frontend
+    volumes:
+      - ../chatmap/chatmap-ui/src:/app/src
+      - ../chatmap/chatmap-ui/public:/app/public
+      - ./config/chatmap-config.json:/app/public/config.json:ro
+      - ../chatmap/chatmap-ui/index.html:/app/index.html
+      - ../chatmap/chatmap-ui/vite.config.js:/app/vite.config.js
+      - ../auth-libs/web-component:/shared/hot-auth-libs/web-component
+    environment:
+      - VITE_HANKO_URL=https://login.hotosm.test
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chatmap-frontend.rule=Host(`chatmap.hotosm.test`)"
+      - "traefik.http.routers.chatmap-frontend.entrypoints=websecure"
+      - "traefik.http.routers.chatmap-frontend.tls=true"
+      - "traefik.http.services.chatmap-frontend.loadbalancer.server.port=5173"
