@@ -147,7 +147,7 @@ if [ -f "$CAROOT/rootCA.pem" ]; then
     read -p "Reinstall local CA? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        mkcert -uninstall
+        mkcert -uninstall 2>/dev/null || true
         mkcert -install
         echo -e "${GREEN}✓ Local CA reinstalled${NC}"
     else
