@@ -36,10 +36,8 @@ https://traefik.hotosm.test       → Traefik Dashboard
 - Bash 4+ required (macOS ships with 3.2)
   ```bash
   brew install bash
-  sudo bash -c 'echo /usr/local/bin/bash >> /etc/shells'
-  chsh -s /usr/local/bin/bash
   ```
-  Then restart your terminal
+  No need to change your default shell - just ensure Homebrew's bin is in your PATH
 
 ### 1. Clone hot-dev-env
 
