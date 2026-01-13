@@ -39,14 +39,21 @@ https://traefik.hotosm.test       → Traefik Dashboard
   ```
   No need to change your default shell - just ensure Homebrew's bin is in your PATH
 
-### 1. Clone hot-dev-env
+### 1. Create HOT folder and clone
+
+First, create a folder where all HOTOSM repos will live (hot-dev-env + sibling repos):
 
 ```bash
-# Choose a parent directory (examples for each OS):
-# Linux/macOS:  ~/dev/HOT  or  /home/username/dev/HOT
-# Windows:      C:\dev\HOT  or  C:\Users\username\dev\HOT
+# Linux/macOS
+mkdir -p ~/dev/HOT && cd ~/dev/HOT
 
-cd <your-parent-directory>
+# Windows (Git Bash)
+mkdir -p /c/dev/HOT && cd /c/dev/HOT
+```
+
+Then clone hot-dev-env inside it:
+
+```bash
 git clone https://github.com/hotosm/hot-dev-env.git
 cd hot-dev-env
 ```
