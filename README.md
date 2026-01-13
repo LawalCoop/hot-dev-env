@@ -6,16 +6,17 @@ Unified development environment for HOTOSM applications using subdomain routing 
 
 This repo orchestrates multiple HOTOSM applications:
 - **Portal** - Main application portal
-- **Login** - Authentication & SSO service
+- **Login** - Authentication & SSO service (includes auth-libs)
 - **Drone-TM** - Drone Tasking Manager
 - **fAIr** - AI-assisted mapping tool
-- **Auth-libs** - Shared authentication libraries
+- **ChatMap** - AI-powered map data extraction from chat
 
 All services run locally with subdomain routing (just like production):
 ```
 https://portal.hotosm.test        → Portal
 https://dronetm.hotosm.test       → Drone-TM
 https://fair.hotosm.test          → fAIr
+https://chatmap.hotosm.test       → ChatMap
 https://login.hotosm.test         → Hanko SSO
 https://minio.hotosm.test         → MinIO Console
 https://traefik.hotosm.test       → Traefik Dashboard
@@ -56,7 +57,7 @@ cd hot-dev-env
 
 ```bash
 # This will:
-# - Check for/clone missing repos (portal, login, drone-tm, fAIr, auth-libs)
+# - Check for/clone missing repos (portal, login, drone-tm, fAIr, chatmap)
 # - Switch portal and login to develop branch automatically
 # - Create .env files from examples
 # - Configure hosts file for *.hotosm.test domains
@@ -74,10 +75,10 @@ Your final directory structure:
 <parent-directory>/
 ├── hot-dev-env/
 ├── portal/          (on develop branch)
-├── login/           (on develop branch)
+├── login/           (on develop branch, includes auth-libs/)
 ├── drone-tm/
 ├── fAIr/
-└── auth-libs/
+└── chatmap/
 ```
 
 ### 3. Setup HTTPS (Recommended)
@@ -118,6 +119,7 @@ Open in your browser:
 - **Portal:** https://portal.hotosm.test
 - **Drone-TM:** https://dronetm.hotosm.test
 - **fAIr:** https://fair.hotosm.test
+- **ChatMap:** https://chatmap.hotosm.test
 - **Login:** https://login.hotosm.test
 - **MinIO Console:** https://minio.hotosm.test (admin/password)
 - **Traefik Dashboard:** https://traefik.hotosm.test
@@ -147,9 +149,10 @@ Press `Ctrl+C` to stop all services.
 # Development
 make dev              # Start all services
 make dev-portal       # Start Portal only
-make dev-login        # Start Login only (when frontend/backend exist)
+make dev-login        # Start Login only
 make dev-dronetm      # Start Drone-TM only
 make dev-fair         # Start fAIr only
+make dev-chatmap      # Start ChatMap only
 make stop             # Stop all services
 make restart          # Restart all services
 
@@ -160,7 +163,7 @@ make logs-follow      # Follow all logs (live)
 # Management
 make ps               # Show running services
 make health           # Check service health
-make auth-libs        # Update auth-libs after changes
+make auth-libs        # Update auth-libs (in login/auth-libs/)
 make update           # Git pull all repos
 
 # Cleanup
@@ -212,10 +215,11 @@ HOT/
 │   └── traefik/
 │
 ├── portal/               # Portal repo (independent)
-├── login/                # Login/SSO repo (independent)
+├── login/                # Login/SSO repo (includes auth-libs/)
+│   └── auth-libs/        # Shared authentication libraries
 ├── drone-tm/             # Drone-TM repo (independent)
 ├── fAIr/                 # fAIr repo (independent)
-└── auth-libs/            # Auth-libs repo (independent)
+└── chatmap/              # ChatMap repo (independent)
 ```
 
 Each app repo maintains its own:
@@ -236,6 +240,7 @@ The `hot-dev-env` repo only contains orchestration config (docker-compose, Makef
 | Drone-TM Backend | https://dronetm.hotosm.test/api | 8000 | FastAPI |
 | fAIr Frontend | https://fair.hotosm.test | 3000 | React app (Vite) |
 | fAIr Backend | https://fair.hotosm.test/api | 8000 | Django |
+| ChatMap Frontend | https://chatmap.hotosm.test | 5173 | React app (Vite) |
 | Login Frontend | https://login.hotosm.test/app | 5174 | React app (Vite) |
 | Login Backend | https://login.hotosm.test/api | 8000 | FastAPI |
 | Hanko Auth | https://login.hotosm.test | 8000 | Hanko SSO (internal) |
@@ -319,10 +324,10 @@ docker compose restart fair-frontend
 
 ### Updating Auth-libs
 
-When you make changes to auth-libs:
+Auth-libs lives inside the login repo at `login/auth-libs/`. When you make changes:
 
 ```bash
-# 1. Edit source in ../auth-libs/
+# 1. Edit source in ../login/auth-libs/
 
 # 2. Build and distribute
 make auth-libs
@@ -360,6 +365,7 @@ The setup script will detect your OS and provide instructions to add:
 127.0.0.1 portal.hotosm.test
 127.0.0.1 dronetm.hotosm.test
 127.0.0.1 fair.hotosm.test
+127.0.0.1 chatmap.hotosm.test
 127.0.0.1 login.hotosm.test
 127.0.0.1 minio.hotosm.test
 127.0.0.1 traefik.hotosm.test
