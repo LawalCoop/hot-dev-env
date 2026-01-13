@@ -234,7 +234,7 @@ This ensures `/api` requests go to login-backend, while `/.well-known` (JWT keys
 
 - Main README: Quick start and user guide
 - Individual app repos: See their CLAUDE.md for app-specific guidance
-- Auth-libs: `/home/willaru/dev/HOT/auth-libs/CLAUDE.md`
+- Auth-libs: `/home/willaru/dev/HOT/login/auth-libs/CLAUDE.md` (inside login repo)
 - Portal: `/home/willaru/dev/HOT/portal/CLAUDE.md`
 
 ## Git Commit Messages
