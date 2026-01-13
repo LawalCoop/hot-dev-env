@@ -28,10 +28,8 @@ if [[ "$BASH_VERSION_NUM" -lt 4 ]]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "macOS ships with Bash 3.2. To fix:"
         echo "  brew install bash"
-        echo "  sudo bash -c 'echo /usr/local/bin/bash >> /etc/shells'"
-        echo "  chsh -s /usr/local/bin/bash"
         echo ""
-        echo "Then restart your terminal and run 'make setup' again."
+        echo "Then run: bash scripts/setup.sh"
     fi
     exit 1
 fi
