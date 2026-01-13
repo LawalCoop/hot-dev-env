@@ -103,7 +103,7 @@ install:
 	@cd ../openaerialmap/frontend && pnpm install
 	@echo ""
 	@echo "→ OpenAerialMap backend..."
-	@cd ../openaerialmap/backend/stac-api && uv sync
+	@cd ../openaerialmap/backend/stac-api && uv sync --python 3.13
 	@echo ""
 	@echo "→ fAIr frontend..."
 	@cd ../fAIr/frontend && pnpm install
