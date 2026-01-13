@@ -333,8 +333,7 @@ services:
       - ../drone-tm/src/frontend/tailwind.config.js:/app/tailwind.config.js
     environment:
       - VITE_AUTH_PROVIDER=hanko
-      - VITE_HANKO_API_URL=https://login.hotosm.test
-      - VITE_PORTAL_SSO_URL=https://login.hotosm.test
+      - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_FRONTEND_URL=https://dronetm.hotosm.test
       - VITE_API_URL=https://dronetm.hotosm.test/api
       # Legacy env vars (for compatibility with existing code)
@@ -382,7 +381,7 @@ services:
       - EXTRA_CORS_ORIGINS=https://dronetm.hotosm.test,https://login.hotosm.test
     command: >
       sh -c "rm -rf /opt/python/lib/python3.11/site-packages/hotosm_auth* 2>/dev/null;
-             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.2.1-py3-none-any.whl &&
+             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.2.2-py3-none-any.whl &&
              alembic upgrade heads &&
              uvicorn app.main:api --host 0.0.0.0 --port 8000 --log-level info --reload"
     networks:
@@ -523,7 +522,6 @@ services:
       - /app/node_modules
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
-      - VITE_LOGIN_URL=https://login.hotosm.test
       - VITE_API_URL=https://openaerialmap.hotosm.test/api
       - VITE_STAC_API_URL=https://openaerialmap.hotosm.test
       - VITE_STAC_API_PATHNAME=api
@@ -623,8 +621,7 @@ services:
       - ../fAIr/frontend/vite.config.mts:/app/vite.config.mts
     environment:
       - VITE_AUTH_PROVIDER=hanko
-      - VITE_HANKO_API_URL=https://login.hotosm.test
-      - VITE_LOGIN_URL=https://login.hotosm.test
+      - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_BASE_API_URL=https://fair.hotosm.test/api/v1/
     networks:
       - hotosm
@@ -663,7 +660,7 @@ services:
       - LOGIN_URL=https://login.hotosm.test
       - ADMIN_EMAILS=hernangigena@gmail.com
     command: >
-      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.2.1-py3-none-any.whl &&
+      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.2.2-py3-none-any.whl &&
              python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     networks:
