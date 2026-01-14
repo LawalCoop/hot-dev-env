@@ -164,12 +164,12 @@ dev:
 
 dev-portal:
 	@echo "Starting Portal services..."
-	docker compose up portal-frontend portal-backend portal-db hanko hanko-db --build
+	docker compose up portal-frontend portal-backend portal-db hanko hanko-db mailhog traefik --build
 
 dev-login:
 	@echo "Starting Login services..."
 	@if [ -d "../login/frontend" ] && [ -d "../login/backend" ]; then \
-		docker compose --profile login up login-frontend login-backend hanko hanko-db --build; \
+		docker compose --profile login up login-frontend login-backend hanko hanko-db mailhog traefik --build; \
 	else \
 		echo "Error: login/frontend or login/backend not found"; \
 		echo "Create these directories first, then run make install"; \
@@ -178,15 +178,15 @@ dev-login:
 
 dev-dronetm:
 	@echo "Starting Drone-TM services..."
-	docker compose up dronetm-frontend dronetm-backend dronetm-db minio redis nodeodm --build
+	docker compose up dronetm-frontend dronetm-backend dronetm-db minio redis nodeodm hanko hanko-db mailhog traefik --build
 
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
-	docker compose up oam-frontend oam-backend oam-db hanko hanko-db --build
+	docker compose up oam-frontend oam-backend oam-db hanko hanko-db mailhog traefik --build
 
 dev-chatmap:
 	@echo "Starting ChatMap services..."
-	docker compose up chatmap-frontend hanko hanko-db --build
+	docker compose up chatmap-frontend hanko hanko-db mailhog traefik --build
 
 # ==================
 # Management
