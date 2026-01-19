@@ -17,6 +17,7 @@ volumes:
   oam-db-data:
   fair-db-data:
   fair-redis-data:
+  umap-db-data:
 
 services:
   # ==========================================
@@ -708,6 +709,67 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ==========================================
+  # uMap - User Map Editor
+  # ==========================================
+
+  # uMap Database (PostGIS)
+  umap-db:
+    image: postgis/postgis:14-3.5-alpine
+    container_name: hotosm-umap-db
+    environment:
+      - POSTGRES_DB=umap
+      - POSTGRES_USER=umap
+      - POSTGRES_PASSWORD=umap123456
+    volumes:
+      - umap-db-data:/var/lib/postgresql/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # uMap Application (Django)
+  umap-app:
+    build:
+      context: ../umap/app
+      dockerfile: Dockerfile
+    container_name: hotosm-umap-app
+    volumes:
+      - ../umap/app:/app
+      - /app/.venv  # Preserve .venv from build
+    environment:
+      - UMAP_SITE_URL=https://umap.hotosm.test
+      - UMAP_SETTINGS=/app/settings.py
+      - UMAP_SECRET_KEY=${UMAP_SECRET_KEY:-change-me-in-production-min-32-chars}
+      - UMAP_DB_HOST=umap-db
+      - UMAP_DB_NAME=umap
+      - UMAP_DB_USER=umap
+      - UMAP_DB_PASSWORD=umap123456
+      - PGPASSWORD=umap123456
+      - DEBUG=${DEBUG:-true}
+      - ALLOWED_HOSTS=umap.hotosm.test,localhost,127.0.0.1
+      - CSRF_TRUSTED_ORIGINS=https://umap.hotosm.test
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-legacy}
+      - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - COOKIE_SECURE=false
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.umap-app.rule=Host(`umap.hotosm.test`)"
+      - "traefik.http.routers.umap-app.entrypoints=websecure"
+      - "traefik.http.routers.umap-app.tls=true"
+      - "traefik.http.services.umap-app.loadbalancer.server.port=8000"
+    depends_on:
+      umap-db:
+        condition: service_healthy
 
   # ==========================================
   # ChatMap - Chat to Map Converter

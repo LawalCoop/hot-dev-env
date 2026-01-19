@@ -18,6 +18,7 @@ HOSTS_ENTRIES=(
     "127.0.0.1 dronetm.hotosm.test"
     "127.0.0.1 fair.hotosm.test"
     "127.0.0.1 openaerialmap.hotosm.test"
+    "127.0.0.1 umap.hotosm.test"
     "127.0.0.1 chatmap.hotosm.test"
     "127.0.0.1 login.hotosm.test"
     "127.0.0.1 mail.hotosm.test"
