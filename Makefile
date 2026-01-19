@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev stop restart logs health auth-libs clean load-dump deploy-status
+.PHONY: help setup setup-https install dev dev-umap stop restart logs health auth-libs clean load-dump deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -24,6 +24,7 @@ help:
 	@echo "  make dev-login      - Start Login only (requires frontend/backend)"
 	@echo "  make dev-dronetm    - Start Drone-TM only"
 	@echo "  make dev-oam        - Start OpenAerialMap only"
+	@echo "  make dev-umap       - Start uMap only"
 	@echo "  make dev-chatmap    - Start ChatMap only"
 	@echo ""
 	@echo "Management:"
@@ -50,6 +51,7 @@ help:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
@@ -99,6 +101,9 @@ install:
 	@echo ""
 	@echo "→ Drone-TM backend..."
 	@cd ../drone-tm/src/backend && uv sync || echo "   ⚠ GDAL no disponible localmente (OK - corre en Docker)"
+	@echo ""
+	@echo "→ uMap backend..."
+	@cd ../umap/app && uv sync
 	@echo ""
 	@echo "→ OpenAerialMap frontend..."
 	@cd ../openaerialmap/frontend && pnpm install
@@ -152,6 +157,7 @@ dev:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
@@ -184,6 +190,10 @@ dev-dronetm:
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
 	docker compose up oam-frontend oam-backend oam-db hanko hanko-db mailhog traefik --build
+
+dev-umap:
+	@echo "Starting uMap services..."
+	docker compose up umap-app umap-db hanko hanko-db mailhog traefik --build
 
 dev-chatmap:
 	@echo "Starting ChatMap services..."
@@ -229,6 +239,9 @@ health:
 	@curl -f -s https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@curl -f -s https://fair.hotosm.test/api/v1/ > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
+	@echo "uMap:"
+	@curl -f -s https://umap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@echo ""
 	@echo "ChatMap:"
 	@curl -f -s https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@echo ""
@@ -260,6 +273,7 @@ update:
 	@cd ../drone-tm && git pull && echo "  ✓ Drone-TM"
 	@cd ../fAIr && git pull && echo "  ✓ fAIr"
 	@cd ../openaerialmap && git pull && echo "  ✓ OpenAerialMap"
+	@cd ../umap && git pull && echo "  ✓ uMap"
 	@cd ../chatmap && git pull && echo "  ✓ ChatMap"
 	@cd ../auth-libs && git pull && echo "  ✓ Auth-libs"
 	@echo ""
@@ -280,7 +294,7 @@ load-dump:
 	@if [ -z "$(APP)" ] || [ -z "$(URL)" ]; then \
 		echo "Usage: make load-dump APP=<app> URL=<dump_url_or_path>"; \
 		echo ""; \
-		echo "Apps: portal, dronetm, fair, oam, hanko"; \
+		echo "Apps: portal, dronetm, fair, oam, umap, hanko"; \
 		echo ""; \
 		echo "Examples:"; \
 		echo "  make load-dump APP=dronetm URL=https://example.com/dtm_dump.sql"; \
