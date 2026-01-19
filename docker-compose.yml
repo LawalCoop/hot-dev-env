@@ -332,7 +332,7 @@ services:
       - ../drone-tm/src/frontend/postcss.config.js:/app/postcss.config.js
       - ../drone-tm/src/frontend/tailwind.config.js:/app/tailwind.config.js
     environment:
-      - VITE_AUTH_PROVIDER=hanko
+      - VITE_AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_FRONTEND_URL=https://dronetm.hotosm.test
       - VITE_API_URL=https://dronetm.hotosm.test/api
@@ -363,7 +363,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://dtm:dtm@dronetm-db:5432/dtm_db
       - POSTGRES_HOST=dronetm-db
-      - AUTH_PROVIDER=hanko
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       - HANKO_API_URL=http://hanko:8000
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
@@ -567,7 +567,7 @@ services:
       - COOKIE_SAMESITE=none
       - OSM_CLIENT_ID=${OSM_CLIENT_ID}
       - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
-      - AUTH_PROVIDER=hanko
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
     networks:
       - hotosm
     labels:
@@ -620,7 +620,7 @@ services:
       - ../fAIr/frontend/tsconfig.app.json:/app/tsconfig.app.json
       - ../fAIr/frontend/vite.config.mts:/app/vite.config.mts
     environment:
-      - VITE_AUTH_PROVIDER=hanko
+      - VITE_AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_BASE_API_URL=https://fair.hotosm.test/api/v1/
     networks:
@@ -645,7 +645,7 @@ services:
       - /app/.venv  # Preserve .venv from build
     environment:
       - DATABASE_URL=postgis://fair:fair@fair-db:5432/fair
-      - AUTH_PROVIDER=hanko
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       - HANKO_API_URL=http://hanko:8000
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
