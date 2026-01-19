@@ -7,7 +7,11 @@
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
+GRAY='\033[0;90m'
 NC='\033[0m' # No Color
+
+# Track failed runs
+declare -a FAILED_RUNS
 
 # Check if gh is available
 if ! command -v gh &> /dev/null; then
@@ -69,6 +73,11 @@ check_repo() {
         final_status="$status"
     fi
 
+    # Track failures
+    if [ "$final_status" = "failure" ]; then
+        FAILED_RUNS+=("$name|$repo|$run_id")
+    fi
+
     # Format time (relative)
     local time_ago=""
     if [ -n "$created" ]; then
@@ -92,5 +101,22 @@ check_repo "OAM" "hotosm/openaerialmap" "login_hanko" "—"
 check_repo "ChatMap" "hotosm/chatmap" "main" "—"
 
 echo ""
-echo "Tip: Use 'gh run view <run_id> -R hotosm/<repo> --log-failed' to see failure logs"
-echo ""
+
+# Show error details if there are failures
+if [ ${#FAILED_RUNS[@]} -gt 0 ]; then
+    echo -e "${RED}════════════════════════════════════════════════${NC}"
+    echo -e "${RED}  Failed Build Logs${NC}"
+    echo -e "${RED}════════════════════════════════════════════════${NC}"
+
+    for failed in "${FAILED_RUNS[@]}"; do
+        IFS='|' read -r name repo run_id <<< "$failed"
+        echo ""
+        echo -e "${RED}▶ $name${NC} (run $run_id)"
+        echo -e "${GRAY}─────────────────────────────────────────${NC}"
+
+        # Get failed logs (last 30 lines)
+        gh run view "$run_id" -R "$repo" --log-failed 2>&1 | tail -30
+
+        echo ""
+    done
+fi
