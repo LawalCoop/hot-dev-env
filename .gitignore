@@ -28,3 +28,10 @@ traefik-tls.yml
 /hanko-config.yaml
 # But keep config/ folder tracked
 !config/
+
+# Downloaded installers
+*.sh.1
+Miniconda3*.sh
+
+# PEM files (certs generated locally)
+*.pem

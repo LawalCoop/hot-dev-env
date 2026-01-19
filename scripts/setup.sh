@@ -46,6 +46,7 @@ declare -A REPO_URLS=(
     ["login"]="https://github.com/hotosm/login.git"
     ["openaerialmap"]="https://github.com/hotosm/openaerialmap.git"
     ["fAIr"]="https://github.com/hotosm/fAIr.git"
+    ["umap"]="https://github.com/hotosm/umap.git"
     ["chatmap"]="https://github.com/hotosm/chatmap.git"
 )
 
@@ -56,6 +57,7 @@ declare -A REPO_URLS_SSH=(
     ["login"]="git@github.com:hotosm/login.git"
     ["openaerialmap"]="git@github.com:hotosm/openaerialmap.git"
     ["fAIr"]="git@github.com:hotosm/fAIr.git"
+    ["umap"]="git@github.com:hotosm/umap.git"
     ["chatmap"]="git@github.com:hotosm/chatmap.git"
 )
 
@@ -85,6 +87,10 @@ fi
 
 if [[ ! -d "../chatmap" ]]; then
     MISSING_REPOS+=("chatmap")
+fi
+
+if [[ ! -d "../umap" ]]; then
+    MISSING_REPOS+=("umap")
 fi
 
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
@@ -134,6 +140,16 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
                 if [[ "$repo" == "chatmap" ]]; then
                     cd "$repo"
                     BRANCH_NAME="feature/hotosm-auth"
+                    echo "  → Switching to $BRANCH_NAME branch..."
+                    git checkout -b $BRANCH_NAME origin/$BRANCH_NAME 2>/dev/null || git checkout $BRANCH_NAME
+                    cd ..
+                    echo "  ✓ $repo repo on $BRANCH_NAME branch"
+                fi
+
+                # Switch umap to login_hanko branch
+                if [[ "$repo" == "umap" ]]; then
+                    cd "$repo"
+                    BRANCH_NAME="login_hanko"
                     echo "  → Switching to $BRANCH_NAME branch..."
                     git checkout -b $BRANCH_NAME origin/$BRANCH_NAME 2>/dev/null || git checkout $BRANCH_NAME
                     cd ..
@@ -196,7 +212,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         exit 1
     fi
 else
-    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, chatmap)"
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap)"
     echo ""
 
     # Ensure portal and login repos are on develop branch
@@ -219,9 +235,9 @@ else
         fi
     done
 
-    # Ensure drone-tm, openaerialmap, fAIr, and chatmap repos are on their dev branches
+    # Ensure drone-tm, openaerialmap, fAIr, umap, y chatmap repos are on their dev branches
     # drone-tm uses login-hanko, chatmap uses feature/hotosm-auth, others use login_hanko
-    for repo in drone-tm openaerialmap fAIr chatmap; do
+    for repo in drone-tm openaerialmap fAIr umap chatmap; do
         if [[ -d "../$repo" ]]; then
             cd "../$repo"
             CURRENT_BRANCH=$(git branch --show-current 2>/dev/null)
@@ -325,6 +341,15 @@ else
     echo "  ✓ ../fAIr/backend/.env already exists"
 fi
 
+if [[ ! -f "../umap/env.docker.sample" ]] || [[ ! -f "../umap/.env" ]]; then
+    if [[ -f "../umap/env.docker.sample" ]]; then
+        cp ../umap/env.docker.sample ../umap/.env
+        echo "  ✓ Created ../umap/.env (please review and update)"
+    fi
+else
+    echo "  ✓ ../umap/.env already exists"
+fi
+
 echo ""
 
 # Configure /etc/hosts
@@ -344,6 +369,7 @@ echo "     - ../login/.env"
 echo "     - ../drone-tm/.env"
 echo "     - ../openaerialmap/.env"
 echo "     - ../fAIr/backend/.env"
+echo "     - ../umap/.env"
 echo ""
 echo "  2. (Optional) Update Google OAuth credentials in:"
 echo "     - ./config/hanko-config.yaml"
@@ -360,6 +386,7 @@ echo "  Portal:          https://portal.hotosm.test"
 echo "  Drone-TM:        https://dronetm.hotosm.test"
 echo "  fAIr:            https://fair.hotosm.test"
 echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+echo "  uMap:            https://umap.hotosm.test"
 echo "  ChatMap:         https://chatmap.hotosm.test"
 echo "  Hanko Auth:      https://login.hotosm.test"
 echo "  MinIO Console:   https://minio.hotosm.test"
