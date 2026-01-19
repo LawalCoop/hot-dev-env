@@ -96,7 +96,7 @@ echo "  ────────────────────────
 check_repo "Portal" "hotosm/portal" "develop" "portal.hotosm.org"
 check_repo "Login" "hotosm/login" "develop" "dev.login.hotosm.org"
 check_repo "Drone-TM" "hotosm/drone-tm" "login-hanko" "testlogin.dronetm.hotosm.org"
-check_repo "fAIr" "hotosm/fAIr" "login_hanko" "—"
+check_repo "fAIr" "hotosm/fAIr" "login_hanko" "testlogin.fair.hotosm.org"
 check_repo "OAM" "hotosm/openaerialmap" "login_hanko" "—"
 check_repo "ChatMap" "hotosm/chatmap" "main" "—"
 
