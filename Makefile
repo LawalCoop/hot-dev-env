@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev stop restart logs health auth-libs clean load-dump
+.PHONY: help setup setup-https install dev stop restart logs health auth-libs clean load-dump deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -38,6 +38,7 @@ help:
 	@echo "  make auth-libs      - Update auth-libs in all projects"
 	@echo "  make clean          - Stop and remove all containers/volumes"
 	@echo "  make update         - Git pull all repos"
+	@echo "  make deploy-status  - Show CI/CD deploy status for all apps"
 	@echo ""
 	@echo "Database:"
 	@echo "  make load-dump APP=<app> URL=<url> - Load database dump"
@@ -263,6 +264,13 @@ update:
 	@cd ../auth-libs && git pull && echo "  ✓ Auth-libs"
 	@echo ""
 	@echo "✓ Updated. Run 'make install' if dependencies changed."
+
+deploy-status:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Deploy Status (Latest CI/CD Runs)"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@./scripts/deploy-status.sh
 
 # ==================
 # Database
