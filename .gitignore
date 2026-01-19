@@ -29,7 +29,9 @@ traefik-tls.yml
 # But keep config/ folder tracked
 !config/
 
-# Linux files
-Miniconda3-latest-Linux-x86_64.sh
-fair.hotosm.test+4-key.pem
-fair.hotosm.test+4.pem
+# Downloaded installers
+*.sh.1
+Miniconda3*.sh
+
+# PEM files (certs generated locally)
+*.pem
