@@ -3,5 +3,6 @@
     "ENABLE_LIVE": false,
     "HANKO_API_URL": "https://login.hotosm.test",
     "PORTAL_SSO_URL": "https://login.hotosm.test",
+    "LOGIN_URL": "https://login.hotosm.test/app",
     "FRONTEND_URL": "https://chatmap.hotosm.test"
 }

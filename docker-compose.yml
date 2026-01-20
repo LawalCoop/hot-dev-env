@@ -227,6 +227,7 @@ services:
 
   # Hanko database migrations (runs once before Hanko starts)
   hanko-migrate:
+    platform: linux/amd64  # No ARM64 image available
     image: ghcr.io/teamhanko/hanko:latest
     container_name: hotosm-hanko-migrate
     volumes:
@@ -242,6 +243,7 @@ services:
     restart: "no"
 
   hanko:
+    platform: linux/amd64  # No ARM64 image available
     image: ghcr.io/teamhanko/hanko:latest
     container_name: hotosm-hanko
     volumes:
@@ -382,7 +384,7 @@ services:
       - EXTRA_CORS_ORIGINS=https://dronetm.hotosm.test,https://login.hotosm.test
     command: >
       sh -c "rm -rf /opt/python/lib/python3.11/site-packages/hotosm_auth* 2>/dev/null;
-             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.2.4-py3-none-any.whl &&
+             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.2.5-py3-none-any.whl &&
              alembic upgrade heads &&
              uvicorn app.main:api --host 0.0.0.0 --port 8000 --log-level info --reload"
     networks:
@@ -584,6 +586,7 @@ services:
 
   # OAM Database (PostgreSQL + pgSTAC)
   oam-db:
+    platform: linux/amd64  # No ARM64 image available
     image: ghcr.io/stac-utils/pgstac:v0.9.3
     container_name: hotosm-oam-db
     environment:
@@ -651,6 +654,10 @@ services:
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
+      - OSM_CLIENT_ID=${OSM_CLIENT_ID}
+      - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
+      - OSM_LOGIN_REDIRECT_URI=https://fair.hotosm.test/authenticate
+      - OSM_REDIRECT_URI=https://fair.hotosm.test/api/v1/auth/osm/callback/
       - REDIS_URL=redis://fair-redis:6379
       - CELERY_BROKER_URL=redis://fair-redis:6379/0
       - CELERY_RESULT_BACKEND=redis://fair-redis:6379/0
@@ -661,7 +668,7 @@ services:
       - LOGIN_URL=https://login.hotosm.test
       - ADMIN_EMAILS=hernangigena@gmail.com
     command: >
-      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.2.4-py3-none-any.whl &&
+      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.2.5-py3-none-any.whl &&
              python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     networks:
@@ -788,7 +795,7 @@ services:
       - ./config/chatmap-config.json:/app/public/config.json:ro
       - ../chatmap/chatmap-ui/index.html:/app/index.html
       - ../chatmap/chatmap-ui/vite.config.js:/app/vite.config.js
-      - ../auth-libs/web-component:/shared/hot-auth-libs/web-component
+      # Note: @hotosm/hanko-auth is now installed from npm
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
     networks:
