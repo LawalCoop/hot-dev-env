@@ -12,6 +12,7 @@ volumes:
   portal-db-data:
   login-hanko-db-data:
   dronetm-db-data:
+  chatmap-db-data:
   dronetm-minio-data:
   dronetm-redis-data:
   oam-db-data:
@@ -807,3 +808,57 @@ services:
       - "traefik.http.routers.chatmap-frontend.entrypoints=websecure"
       - "traefik.http.routers.chatmap-frontend.tls=true"
       - "traefik.http.services.chatmap-frontend.loadbalancer.server.port=5173"
+
+  # ChatMap Backend (FastAPI)
+  chatmap-backend:
+    build:
+      context: ../chatmap/chatmap-api
+      dockerfile: Dockerfile
+      target: development
+    container_name: hotosm-chatmap-backend
+    volumes:
+      - ../chatmap/chatmap-api:/app
+    environment:
+      - CHATMAP_API_DEBUG=true
+      - CHATMAP_API_URL=https://chatmap.hotosm.test/api
+      - CHATMAP_DB_HOST=chatmap-db
+      - CHATMAP_DB_USER=chatmap
+      - CHATMAP_DB_PASSWORD=chatmap
+      - CHATMAP_DB=chatmap
+      - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - REDIS_HOST=redis
+    networks:
+      - hotosm
+    depends_on:
+      chatmap-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chatmap-backend.rule=Host(`chatmap.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.chatmap-backend.entrypoints=websecure"
+      - "traefik.http.routers.chatmap-backend.tls=true"
+      - "traefik.http.middlewares.chatmap-strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.chatmap-backend.middlewares=chatmap-strip-api"
+      - "traefik.http.services.chatmap-backend.loadbalancer.server.port=8000"
+
+  # ChatMap Database (PostgreSQL + PostGIS)
+  chatmap-db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: hotosm-chatmap-db
+    environment:
+      - POSTGRES_USER=chatmap
+      - POSTGRES_PASSWORD=chatmap
+      - POSTGRES_DB=chatmap
+    volumes:
+      - chatmap-db-data:/var/lib/postgresql/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatmap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
