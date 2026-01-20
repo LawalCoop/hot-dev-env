@@ -13,6 +13,7 @@ volumes:
   login-hanko-db-data:
   dronetm-db-data:
   chatmap-db-data:
+  chatmap-sessions:
   dronetm-minio-data:
   dronetm-redis-data:
   oam-db-data:
@@ -827,6 +828,8 @@ services:
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - REDIS_HOST=redis
+      - SERVER_URL=http://chatmap-go:8001
+      - CHATMAP_ENC_KEY=${CHATMAP_ENC_KEY:-0123456789ABCDEF0123456789ABCDEF}
     networks:
       - hotosm
     depends_on:
@@ -834,6 +837,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      chatmap-go:
+        condition: service_started
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.chatmap-backend.rule=Host(`chatmap.hotosm.test`) && PathPrefix(`/api`)"
@@ -860,3 +865,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ChatMap Go Backend (WhatsApp connector)
+  chatmap-go:
+    image: golang:1.24
+    container_name: hotosm-chatmap-go
+    working_dir: /app
+    command: sh -c "go mod download && go run main.go"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHATMAP_ENC_KEY=${CHATMAP_ENC_KEY:-0123456789ABCDEF0123456789ABCDEF}
+    volumes:
+      - ../chatmap/chatmap-im-connector:/app
+      - chatmap-sessions:/app/sessions
+    networks:
+      - hotosm
+    depends_on:
+      redis:
+        condition: service_healthy
