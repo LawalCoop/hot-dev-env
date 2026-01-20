@@ -158,7 +158,6 @@ services:
     volumes:
       - ../login/frontend/src:/app/src
       - ../login/frontend/public:/app/public
-      - ../login/frontend/auth-libs:/app/auth-libs
       - ../login/frontend/vite.config.ts:/app/vite.config.ts
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
@@ -329,7 +328,6 @@ services:
     volumes:
       - ../drone-tm/src/frontend/src:/app/src
       - ../drone-tm/src/frontend/public:/app/public
-      - ../drone-tm/src/frontend/auth-libs:/app/auth-libs
       - ../drone-tm/src/frontend/vite.config.ts:/app/vite.config.ts
       - ../drone-tm/src/frontend/index.html:/app/index.html
       - ../drone-tm/src/frontend/components.json:/app/components.json
@@ -363,7 +361,6 @@ services:
     container_name: hotosm-dronetm-backend
     volumes:
       - ../drone-tm/src/backend/app:/project/src/backend/app
-      - ../drone-tm/src/backend/auth-libs:/project/src/backend/auth-libs
     environment:
       - DATABASE_URL=postgresql+asyncpg://dtm:dtm@dronetm-db:5432/dtm_db
       - POSTGRES_HOST=dronetm-db
@@ -384,9 +381,7 @@ services:
       - ADMIN_EMAILS=hernangigena@gmail.com
       - EXTRA_CORS_ORIGINS=https://dronetm.hotosm.test,https://login.hotosm.test
     command: >
-      sh -c "rm -rf /opt/python/lib/python3.11/site-packages/hotosm_auth* 2>/dev/null;
-             pip install --force-reinstall --target=/opt/python/lib/python3.11/site-packages /project/src/backend/auth-libs/dist/hotosm_auth-0.2.5-py3-none-any.whl &&
-             alembic upgrade heads &&
+      sh -c "alembic upgrade heads &&
              uvicorn app.main:api --host 0.0.0.0 --port 8000 --log-level info --reload"
     networks:
       - hotosm
@@ -617,7 +612,6 @@ services:
     volumes:
       - ../fAIr/frontend/src:/app/src
       - ../fAIr/frontend/public:/app/public
-      - ../fAIr/frontend/auth-libs:/app/auth-libs
       - ../fAIr/frontend/index.html:/app/index.html
       - ../fAIr/frontend/package.json:/app/package.json
       - ../fAIr/frontend/pnpm-lock.yaml:/app/pnpm-lock.yaml
@@ -669,8 +663,7 @@ services:
       - LOGIN_URL=https://login.hotosm.test
       - ADMIN_EMAILS=hernangigena@gmail.com
     command: >
-      sh -c "pip install --force-reinstall --target=/app/.venv/lib/python3.11/site-packages /app/auth-libs/dist/hotosm_auth-0.2.5-py3-none-any.whl &&
-             python manage.py migrate --noinput &&
+      sh -c "python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     networks:
       - hotosm
