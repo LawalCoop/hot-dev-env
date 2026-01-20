@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-umap stop restart logs health auth-libs clean load-dump deploy-status
+.PHONY: help setup setup-https install dev dev-umap stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -34,6 +34,10 @@ help:
 	@echo "  make logs-follow    - Follow all logs"
 	@echo "  make ps             - Show running services"
 	@echo "  make health         - Check service health"
+	@echo ""
+	@echo "Auth-libs Development:"
+	@echo "  make link-auth-libs   - Link local auth-libs for development"
+	@echo "  make unlink-auth-libs - Unlink and use npm versions"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make auth-libs      - Update auth-libs in all projects"
@@ -260,6 +264,39 @@ auth-libs:
 	@echo "  Updating Auth-libs"
 	@echo "════════════════════════════════════════════════"
 	@./scripts/update-auth-libs.sh
+
+link-auth-libs:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Linking local auth-libs for development"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@for container in hotosm-portal-frontend hotosm-login-frontend hotosm-dronetm-frontend hotosm-fair-frontend hotosm-oam-frontend; do \
+		echo "  → $$container"; \
+		docker exec $$container sh -c "rm -rf /app/node_modules/@hotosm/hanko-auth && ln -s /auth-libs-src /app/node_modules/@hotosm/hanko-auth && rm -rf /app/node_modules/.vite" 2>/dev/null && echo "    ✓ linked" || echo "    (not running)"; \
+	done
+	@echo ""
+	@echo "Restarting containers to load linked version..."
+	@docker compose restart portal-frontend login-frontend dronetm-frontend fair-frontend oam-frontend 2>/dev/null || true
+	@echo ""
+	@echo "Done! Now you can:"
+	@echo "  1. Edit code in ../login/auth-libs/web-component/src/"
+	@echo "  2. Build: cd ../login/auth-libs/web-component && pnpm build"
+	@echo "  3. Refresh browser"
+
+unlink-auth-libs:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Unlinking auth-libs (restoring npm versions)"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@for container in hotosm-portal-frontend hotosm-login-frontend hotosm-dronetm-frontend hotosm-fair-frontend hotosm-oam-frontend; do \
+		echo "  → $$container"; \
+		docker exec $$container sh -c "rm -rf /app/node_modules/@hotosm/hanko-auth /app/node_modules/.vite && CI=true pnpm install --prefer-offline" 2>/dev/null && echo "    ✓ restored from lockfile" || echo "    (not running)"; \
+	done
+	@echo ""
+	@echo "Restarting containers to clear Vite memory cache..."
+	@docker compose restart portal-frontend login-frontend dronetm-frontend fair-frontend oam-frontend 2>/dev/null || true
+	@echo ""
+	@echo "Done! npm versions restored and containers restarted."
 
 clean:
 	@echo "Cleaning all containers and volumes..."

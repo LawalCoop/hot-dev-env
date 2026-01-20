@@ -66,6 +66,7 @@ services:
     volumes:
       - ../portal/frontend:/app
       - /app/node_modules
+      - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_API_URL=https://portal.hotosm.test/api
@@ -159,6 +160,7 @@ services:
       - ../login/frontend/src:/app/src
       - ../login/frontend/public:/app/public
       - ../login/frontend/vite.config.ts:/app/vite.config.ts
+      - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_BACKEND_URL=https://login.hotosm.test/api
@@ -333,6 +335,7 @@ services:
       - ../drone-tm/src/frontend/components.json:/app/components.json
       - ../drone-tm/src/frontend/postcss.config.js:/app/postcss.config.js
       - ../drone-tm/src/frontend/tailwind.config.js:/app/tailwind.config.js
+      - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
       - VITE_AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       - VITE_HANKO_URL=https://login.hotosm.test
@@ -519,6 +522,7 @@ services:
     volumes:
       - ../openaerialmap/frontend:/app
       - /app/node_modules
+      - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_API_URL=https://openaerialmap.hotosm.test/api
@@ -618,6 +622,7 @@ services:
       - ../fAIr/frontend/tsconfig.json:/app/tsconfig.json
       - ../fAIr/frontend/tsconfig.app.json:/app/tsconfig.app.json
       - ../fAIr/frontend/vite.config.mts:/app/vite.config.mts
+      - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
       - VITE_AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       - VITE_HANKO_URL=https://login.hotosm.test
