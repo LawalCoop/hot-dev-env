@@ -19,6 +19,19 @@ if ! command -v gh &> /dev/null; then
     exit 1
 fi
 
+# Spinner animation
+spinner() {
+    local pid=$1
+    local name=$2
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+    while kill -0 $pid 2>/dev/null; do
+        printf "\r  %-15s ${YELLOW}%s${NC} loading..." "$name" "${spin:i++%${#spin}:1}"
+        sleep 0.1
+    done
+    printf "\r%-50s\r" ""  # Clear the line
+}
+
 # Function to get status with color and emoji
 format_status() {
     local status="$1"
@@ -51,8 +64,14 @@ check_repo() {
     local branch="$3"
     local env_name="$4"
 
-    # Get latest run
-    local result=$(gh run list -R "$repo" --branch "$branch" -L 1 --json status,conclusion,name,createdAt,databaseId 2>/dev/null)
+    # Get latest run with spinner
+    local tmpfile=$(mktemp)
+    gh run list -R "$repo" --branch "$branch" -L 1 --json status,conclusion,name,createdAt,databaseId 2>/dev/null > "$tmpfile" &
+    local pid=$!
+    spinner $pid "$name"
+    wait $pid
+    local result=$(cat "$tmpfile")
+    rm -f "$tmpfile"
 
     if [ -z "$result" ] || [ "$result" = "[]" ]; then
         printf "  %-15s %-12s %s\n" "$name" "—" "No runs found on $branch"
@@ -85,21 +104,22 @@ check_repo() {
     fi
 
     local formatted_status=$(format_status "$final_status")
-    printf "  %-15s %-20s %-10s %s\n" "$name" "$formatted_status" "$time_ago" "$env_name"
+    # ANSI codes add ~11 chars, so we use 31 instead of 20 for alignment
+    printf "  %-15s %-31s %-10s %s\n" "$name" "$formatted_status" "$time_ago" "$env_name"
 }
 
 echo ""
 printf "  %-15s %-20s %-10s %s\n" "APP" "STATUS" "TIME" "ENVIRONMENT"
-echo "  ─────────────────────────────────────────────────────────────────"
+echo "  ───────────────────────────────────────────────────────────────────────────"
 
 # Check each app - adjust branches as needed
 check_repo "Portal" "hotosm/portal" "develop" "portal.hotosm.org"
 check_repo "Login" "hotosm/login" "develop" "dev.login.hotosm.org"
 check_repo "Drone-TM" "hotosm/drone-tm" "login-hanko" "testlogin.dronetm.hotosm.org"
 check_repo "fAIr" "hotosm/fAIr" "login_hanko" "testlogin.fair.hotosm.org"
-check_repo "OAM" "hotosm/openaerialmap" "login_hanko" "—"
-check_repo "uMap" "hotosm/umap" "login_hanko" "—"
+check_repo "uMap" "hotosm/umap" "login_hanko" "testlogin.umap.hotosm.org"
 check_repo "ChatMap" "hotosm/chatmap" "develop" "chatmap-dev.hotosm.org"
+check_repo "OAM" "hotosm/openaerialmap" "login_hanko" "—"
 
 echo ""
 
