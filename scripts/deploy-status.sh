@@ -19,6 +19,15 @@ if ! command -v gh &> /dev/null; then
     exit 1
 fi
 
+# Check if jq is available
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq not installed."
+    echo "  Linux:   sudo apt install jq"
+    echo "  Mac:     brew install jq"
+    echo "  Windows: winget install jqlang.jq"
+    exit 1
+fi
+
 # Check if gh is authenticated
 if ! gh auth status &> /dev/null; then
     echo -e "${RED}Error: gh CLI not authenticated${NC}"
