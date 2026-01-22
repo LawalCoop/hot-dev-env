@@ -749,6 +749,7 @@ services:
     volumes:
       - ../umap/app:/app
       - /app/.venv  # Preserve .venv from build
+      - ./certs/localhost.crt:/etc/ssl/certs/localhost.crt:ro
     environment:
       - UMAP_SITE_URL=https://umap.hotosm.test
       - UMAP_SETTINGS=/app/settings.py
@@ -761,8 +762,11 @@ services:
       - DEBUG=${DEBUG:-true}
       - ALLOWED_HOSTS=umap.hotosm.test,localhost,127.0.0.1
       - CSRF_TRUSTED_ORIGINS=https://umap.hotosm.test
-      - AUTH_PROVIDER=${AUTH_PROVIDER:-legacy}
+      - AUTH_PROVIDER=hanko
+      # Backend uses internal HTTP URL (no SSL issues)
       - HANKO_API_URL=http://hanko:8000
+      # Frontend uses public HTTPS URL (for web component)
+      - HANKO_PUBLIC_URL=https://login.hotosm.test
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
