@@ -19,6 +19,13 @@ if ! command -v gh &> /dev/null; then
     exit 1
 fi
 
+# Check if gh is authenticated
+if ! gh auth status &> /dev/null; then
+    echo -e "${RED}Error: gh CLI not authenticated${NC}"
+    echo "Run: gh auth login"
+    exit 1
+fi
+
 # Spinner animation
 spinner() {
     local pid=$1
