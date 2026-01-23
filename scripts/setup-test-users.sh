@@ -105,6 +105,10 @@ setup_umap() {
     # netasciudadanas (id 108, 43 maps) → Justina
     # CartografiasVitales (id 67, 39 maps) → Andrea
     docker exec hotosm-umap-db psql -U umap -d umap -c "
+    -- Primero limpiar uids target si ya existen (moverlos a valor temporal)
+    UPDATE social_auth_usersocialauth SET uid = 'old_' || uid
+    WHERE provider = 'openstreetmap-oauth2' AND uid IN ('$HERNAN_OSM_ID', '$JUSTINA_OSM_ID', '$ANDREA_OSM_ID');
+
     -- Hernan: user_id 78 (mapeadora)
     INSERT INTO social_auth_usersocialauth (user_id, provider, uid, extra_data, created, modified)
     VALUES (78, 'openstreetmap-oauth2', '$HERNAN_OSM_ID', '{}', NOW(), NOW())
