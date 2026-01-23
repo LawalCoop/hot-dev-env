@@ -51,6 +51,12 @@ setup_fair() {
     # OmranNAJJAR (osm_id 12094445, 177 trainings) → Hernan
     # krschap (osm_id 7004124, 72 trainings) → Justina
     # stampachradim (osm_id 3245168, 20 trainings) → Andrea
+
+    # Primero limpiar osm_ids target si ya existen (moverlos a valor temporal)
+    docker exec hotosm-fair-db psql -U fair -d fair -c "
+    UPDATE auth_user SET osm_id = osm_id + 900000000 WHERE osm_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
+    "
+
     docker exec hotosm-fair-db psql -U fair -d fair -c "
     -- Hernan: 12094445 → 23393526
     UPDATE core_training SET user_id = $HERNAN_OSM_ID WHERE user_id = 12094445;
