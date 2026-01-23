@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-umap stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump deploy-status
+.PHONY: help setup setup-https install dev dev-umap stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -48,6 +48,8 @@ help:
 	@echo "Database:"
 	@echo "  make load-dump APP=<app> URL=<url> - Load database dump"
 	@echo "    Apps: portal, dronetm, fair, oam, hanko"
+	@echo "  make setup-test-users [APP=<app>]  - Setup test users for Hanko SSO"
+	@echo "    Run after load-dump to assign users with data to test team"
 	@echo ""
 	@echo "URLs (after make dev):"
 	@echo "  Portal:          https://portal.hotosm.test"
@@ -339,3 +341,6 @@ load-dump:
 		exit 1; \
 	fi
 	@./scripts/load-dump.sh $(APP) $(URL)
+
+setup-test-users:
+	@./scripts/setup-test-users.sh $(or $(APP),all)
