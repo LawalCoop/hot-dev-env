@@ -790,9 +790,8 @@ services:
   # ChatMap Frontend (React + Vite)
   chatmap-frontend:
     build:
-      context: ../
-      dockerfile: chatmap/chatmap-ui/Dockerfile.dev
-      target: development
+      context: ../chatmap/chatmap-ui
+      dockerfile: Dockerfile
     container_name: hotosm-chatmap-frontend
     volumes:
       - ../chatmap/chatmap-ui/src:/app/src
