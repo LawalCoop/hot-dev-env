@@ -199,7 +199,7 @@ services:
       - OSM_CLIENT_ID=${OSM_CLIENT_ID}
       - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
       - OSM_REDIRECT_URI=https://login.hotosm.test/api/auth/osm/callback
-      - ADMIN_EMAILS=hernangigena@gmail.com
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
       # App URLs for admin proxy
       - PORTAL_BACKEND_URL=http://portal-backend:8000
       - DRONETM_BACKEND_URL=http://dronetm-backend:8000
@@ -382,7 +382,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - DEBUG=true
       - LOG_LEVEL=DEBUG
-      - ADMIN_EMAILS=hernangigena@gmail.com
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
       - EXTRA_CORS_ORIGINS=https://dronetm.hotosm.test,https://login.hotosm.test
     command: >
       sh -c "alembic upgrade heads &&
@@ -667,7 +667,7 @@ services:
       - CORS_ALLOWED_ORIGINS=https://fair.hotosm.test,https://login.hotosm.test
       - FRONTEND_URL=https://fair.hotosm.test
       - LOGIN_URL=https://login.hotosm.test
-      - ADMIN_EMAILS=hernangigena@gmail.com
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
@@ -771,7 +771,7 @@ services:
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
       - COOKIE_SECURE=false
-      - ADMIN_EMAILS=hernangigena@gmail.com
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     networks:
       - hotosm
     labels:
