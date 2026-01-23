@@ -31,6 +31,7 @@ setup_dronetm() {
     # Ivan Gayton (27 proj) → Andrea
     # Primero limpiamos los emails target si ya existen en otros users, luego asignamos
     docker exec hotosm-dronetm-db psql -U dtm -d dtm_db -c "
+    UPDATE users SET email_address = 'old_' || id || '@test.local' WHERE email_address LIKE 'old_%';
     UPDATE users SET email_address = 'old_' || email_address WHERE email_address IN ('$HERNAN_EMAIL', '$JUSTINA_EMAIL', '$ANDREA_EMAIL');
     UPDATE users SET email_address = '$HERNAN_EMAIL' WHERE email_address = 'philip.hippolyte@hotosm.org';
     UPDATE users SET email_address = '$JUSTINA_EMAIL' WHERE email_address = 'juan.melo@hotosm.org';
