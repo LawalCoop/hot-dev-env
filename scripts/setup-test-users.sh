@@ -55,6 +55,13 @@ setup_fair() {
 
     # Primero limpiar osm_ids viejos (>900M) y target si ya existen
     docker exec hotosm-fair-db psql -U fair -d fair -c "
+    DELETE FROM core_training WHERE user_id > 900000000;
+    DELETE FROM core_model WHERE user_id > 900000000;
+    DELETE FROM core_aoi WHERE user_id > 900000000;
+    DELETE FROM core_dataset WHERE user_id > 900000000;
+    DELETE FROM core_feedback WHERE user_id > 900000000;
+    DELETE FROM core_prediction WHERE user_id > 900000000;
+    DELETE FROM core_usernotification WHERE user_id > 900000000;
     DELETE FROM auth_user WHERE osm_id > 900000000;
     UPDATE auth_user SET osm_id = osm_id + 900000000 WHERE osm_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
     "
