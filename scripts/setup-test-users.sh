@@ -54,13 +54,26 @@ setup_fair() {
     # stampachradim (osm_id 3245168, 20 trainings) → Andrea
 
     # Primero limpiar osm_ids viejos (>900M) y target si ya existen
+    # Orden de eliminación respetando FK constraints:
+    # 1. feedback (por training_id de trainings a eliminar, y por model_id de models a eliminar)
+    # 2. training (por user_id y por model_id de models a eliminar)
+    # 3. model, aoi, dataset, etc.
     docker exec hotosm-fair-db psql -U fair -d fair -c "
-    DELETE FROM core_training WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
-    DELETE FROM core_model WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
-    DELETE FROM core_aoi WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
-    DELETE FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
+    DELETE FROM core_feedback WHERE training_id IN (SELECT id FROM core_training WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID));
+    DELETE FROM core_feedback WHERE training_id IN (SELECT id FROM core_training WHERE model_id IN (SELECT id FROM core_model WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID)));
     DELETE FROM core_feedback WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
     DELETE FROM core_prediction WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
+    DELETE FROM core_training WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
+    DELETE FROM core_training WHERE model_id IN (SELECT id FROM core_model WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID));
+    DELETE FROM core_model WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
+    DELETE FROM core_label WHERE aoi_id IN (SELECT id FROM core_aoi WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID));
+    DELETE FROM core_aoi WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
+    DELETE FROM core_feedback WHERE training_id IN (SELECT id FROM core_training WHERE model_id IN (SELECT id FROM core_model WHERE dataset_id IN (SELECT id FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID))));
+    DELETE FROM core_training WHERE model_id IN (SELECT id FROM core_model WHERE dataset_id IN (SELECT id FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID)));
+    DELETE FROM core_model WHERE dataset_id IN (SELECT id FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID));
+    DELETE FROM core_label WHERE aoi_id IN (SELECT id FROM core_aoi WHERE dataset_id IN (SELECT id FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID)));
+    DELETE FROM core_aoi WHERE dataset_id IN (SELECT id FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID));
+    DELETE FROM core_dataset WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
     DELETE FROM core_usernotification WHERE user_id > 900000000 OR user_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
     DELETE FROM auth_user WHERE osm_id > 900000000 OR osm_id IN ($HERNAN_OSM_ID, $JUSTINA_OSM_ID, $ANDREA_OSM_ID);
     "

@@ -897,6 +897,7 @@ services:
 
   # Export Tool Database (PostgreSQL + PostGIS)
   export-tool-db:
+    platform: linux/amd64  # Required for Mac M1/M2/M3 compatibility
     image: postgis/postgis:16-3.4-alpine
     container_name: hotosm-export-tool-db
     environment:
@@ -927,6 +928,7 @@ services:
 
   # Export Tool Application (Django)
   export-tool-app:
+    platform: linux/amd64  # Required for Mac M1/M2/M3 compatibility
     build:
       context: ../osm-export-tool
       dockerfile: Dockerfile
@@ -989,6 +991,7 @@ services:
 
   # Export Tool Worker (Dramatiq for background tasks)
   export-tool-worker:
+    platform: linux/amd64  # Required for Mac M1/M2/M3 compatibility
     build:
       context: ../osm-export-tool
       dockerfile: Dockerfile
