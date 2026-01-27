@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-umap stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-umap dev-export-tool stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -26,6 +26,7 @@ help:
 	@echo "  make dev-oam        - Start OpenAerialMap only"
 	@echo "  make dev-umap       - Start uMap only"
 	@echo "  make dev-chatmap    - Start ChatMap only"
+	@echo "  make dev-export-tool - Start Export Tool only"
 	@echo ""
 	@echo "Management:"
 	@echo "  make stop           - Stop all services"
@@ -59,6 +60,7 @@ help:
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
+	@echo "  Export Tool:     https://export-tool.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -165,6 +167,7 @@ dev:
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
+	@echo "  Export Tool:     https://export-tool.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -204,6 +207,10 @@ dev-umap:
 dev-chatmap:
 	@echo "Starting ChatMap services..."
 	docker compose up chatmap-frontend hanko hanko-db mailhog traefik --build
+
+dev-export-tool:
+	@echo "Starting Export Tool services..."
+	docker compose up export-tool-app export-tool-worker export-tool-db export-tool-redis mailhog traefik --build
 
 # ==================
 # Management
@@ -250,6 +257,9 @@ health:
 	@echo ""
 	@echo "ChatMap:"
 	@curl -f -s https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@echo ""
+	@echo "Export Tool:"
+	@curl -f -s https://export-tool.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
 	@echo ""
 	@echo "Shared:"
 	@curl -f -s https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
@@ -314,6 +324,7 @@ update:
 	@cd ../openaerialmap && git pull && echo "  ✓ OpenAerialMap"
 	@cd ../umap && git pull && echo "  ✓ uMap"
 	@cd ../chatmap && git pull && echo "  ✓ ChatMap"
+	@cd ../osm-export-tool && git pull && echo "  ✓ Export Tool"
 	@cd ../auth-libs && git pull && echo "  ✓ Auth-libs"
 	@echo ""
 	@echo "✓ Updated. Run 'make install' if dependencies changed."

@@ -136,6 +136,7 @@ check_repo "fAIr" "hotosm/fAIr" "login_hanko" "testlogin.fair.hotosm.org"
 check_repo "uMap" "hotosm/umap" "login_hanko" "testlogin.umap.hotosm.org"
 check_repo "ChatMap" "hotosm/chatmap" "develop" "chatmap-dev.hotosm.org"
 check_repo "OAM" "hotosm/openaerialmap" "login_hanko" "—"
+check_repo "Export Tool" "hotosm/osm-export-tool" "main" "dev-export-tool.hotosm.org"
 
 echo ""
 

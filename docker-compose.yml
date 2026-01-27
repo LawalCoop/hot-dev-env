@@ -20,6 +20,8 @@ volumes:
   fair-db-data:
   fair-redis-data:
   umap-db-data:
+  export-tool-db-data:
+  export-tool-downloads:
 
 services:
   # ==========================================
@@ -888,3 +890,144 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  # ==========================================
+  # OSM Export Tool - OSM Data Export Service
+  # ==========================================
+
+  # Export Tool Database (PostgreSQL + PostGIS)
+  export-tool-db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: hotosm-export-tool-db
+    environment:
+      - POSTGRES_USER=exports
+      - POSTGRES_PASSWORD=exports
+      - POSTGRES_DB=exports
+    volumes:
+      - export-tool-db-data:/var/lib/postgresql/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exports"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Export Tool Redis (for Dramatiq task queue)
+  export-tool-redis:
+    image: redis:7-alpine
+    container_name: hotosm-export-tool-redis
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Export Tool Application (Django)
+  export-tool-app:
+    build:
+      context: ../osm-export-tool
+      dockerfile: Dockerfile
+      target: development
+    container_name: hotosm-export-tool-app
+    volumes:
+      - ../osm-export-tool:/app
+      - export-tool-downloads:/app/export_downloads
+      - ./config/export-tool-settings.py:/app/core/settings/docker.py:ro
+    environment:
+      - DATABASE_URL=postgis://exports:exports@export-tool-db:5432/exports
+      - DEBUG=True
+      - DJANGO_ENV=development
+      - DJANGO_SETTINGS_MODULE=core.settings.docker
+      - HOSTNAME=export-tool.hotosm.test
+      - ALLOWED_HOSTS=export-tool.hotosm.test,localhost,127.0.0.1,export-tool-app
+      - USE_X_FORWARDED_HOST=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      # Redis for Dramatiq
+      - REDIS_HOST=export-tool-redis
+      - REDIS_PORT=6379
+      # OSM OAuth (same as other services)
+      - OSM_CLIENT_ID=${OSM_CLIENT_ID}
+      - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
+      # Email (using mailhog)
+      - EMAIL_HOST=mailhog
+      - EMAIL_PORT=1025
+      - EMAIL_USE_TLS=false
+      # Overpass API
+      - OVERPASS_API_URL=https://overpass-api.de/api/
+      # Raw Data API
+      - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
+      # HDX (required for settings to load, use dummy key for dev)
+      - HDX_API_KEY=dev-hdx-api-key
+      - HDX_SITE=demo
+      - SYNC_TO_HDX=false
+    command: >
+      sh -c "
+        cd /app/ui && (yarn install || true) && (yarn run dist || true) &&
+        cd /app &&
+        python3 manage.py migrate --noinput &&
+        python3 manage.py collectstatic --noinput || true &&
+        python3 manage.py runserver 0.0.0.0:8000
+      "
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.export-tool-app.rule=Host(`export-tool.hotosm.test`)"
+      - "traefik.http.routers.export-tool-app.entrypoints=websecure"
+      - "traefik.http.routers.export-tool-app.tls=true"
+      - "traefik.http.services.export-tool-app.loadbalancer.server.port=8000"
+    depends_on:
+      export-tool-db:
+        condition: service_healthy
+      export-tool-redis:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+
+  # Export Tool Worker (Dramatiq for background tasks)
+  export-tool-worker:
+    build:
+      context: ../osm-export-tool
+      dockerfile: Dockerfile
+      target: development
+    container_name: hotosm-export-tool-worker
+    volumes:
+      - ../osm-export-tool:/app
+      - export-tool-downloads:/app/export_downloads
+      - ./config/export-tool-settings.py:/app/core/settings/docker.py:ro
+    environment:
+      - DATABASE_URL=postgis://exports:exports@export-tool-db:5432/exports
+      - DEBUG=True
+      - DJANGO_ENV=development
+      - DJANGO_SETTINGS_MODULE=core.settings.docker
+      - HOSTNAME=export-tool.hotosm.test
+      - SECRET_KEY=dev-secret-key-change-in-production
+      # Redis for Dramatiq
+      - REDIS_HOST=export-tool-redis
+      - REDIS_PORT=6379
+      # OSM OAuth
+      - OSM_CLIENT_ID=${OSM_CLIENT_ID}
+      - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
+      # Email
+      - EMAIL_HOST=mailhog
+      - EMAIL_PORT=1025
+      - EMAIL_USE_TLS=false
+      # Overpass API
+      - OVERPASS_API_URL=https://overpass-api.de/api/
+      - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
+      # HDX (required for settings to load, use dummy key for dev)
+      - HDX_API_KEY=dev-hdx-api-key
+      - HDX_SITE=demo
+      - SYNC_TO_HDX=false
+    command: python3 -m dramatiq tasks.task_runners -p 1
+    networks:
+      - hotosm
+    depends_on:
+      export-tool-db:
+        condition: service_healthy
+      export-tool-redis:
+        condition: service_healthy
+    restart: unless-stopped
