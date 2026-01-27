@@ -61,6 +61,7 @@ services:
 
   # Portal Frontend (React + Vite)
   portal-frontend:
+    platform: linux/amd64  # Required for Mac M1/M2/M3 compatibility
     build:
       context: ../portal/frontend
       dockerfile: Dockerfile
