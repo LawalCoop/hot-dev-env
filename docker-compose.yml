@@ -966,6 +966,15 @@ services:
       - HDX_API_KEY=dev-hdx-api-key
       - HDX_SITE=demo
       - SYNC_TO_HDX=false
+      # Hanko SSO Authentication
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
+      - HANKO_API_URL=http://hanko:8000
+      - HANKO_PUBLIC_URL=https://login.hotosm.test
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - COOKIE_SECURE=false
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     command: >
       sh -c "
         cd /app/ui && (yarn install || true) && (yarn run dist || true) &&
@@ -1026,6 +1035,15 @@ services:
       - HDX_API_KEY=dev-hdx-api-key
       - HDX_SITE=demo
       - SYNC_TO_HDX=false
+      # Hanko SSO Authentication
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
+      - HANKO_API_URL=http://hanko:8000
+      - HANKO_PUBLIC_URL=https://login.hotosm.test
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - COOKIE_SECURE=false
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     command: python3 -m dramatiq tasks.task_runners -p 1
     networks:
       - hotosm

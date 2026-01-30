@@ -10,6 +10,7 @@ server:
         - "https://openaerialmap.hotosm.test"
         - "https://chatmap.hotosm.test"
         - "https://umap.hotosm.test"
+        - "https://export-tool.hotosm.test"
       allow_credentials: true
       unsafe_wildcard_origin_allowed: true
 
@@ -40,6 +41,7 @@ webauthn:
       - "https://openaerialmap.hotosm.test"
       - "https://chatmap.hotosm.test"
       - "https://umap.hotosm.test"
+      - "https://export-tool.hotosm.test"
 
 email:
   require_verification: true
@@ -72,6 +74,7 @@ session:
     - "https://openaerialmap.hotosm.test"
     - "https://chatmap.hotosm.test"
     - "https://umap.hotosm.test"
+    - "https://export-tool.hotosm.test"
   cookie:
     name: "hanko"
     domain: ".hotosm.test"
@@ -90,6 +93,7 @@ third_party:
     - "https://openaerialmap.hotosm.test/**"
     - "https://chatmap.hotosm.test/**"
     - "https://umap.hotosm.test/**"
+    - "https://export-tool.hotosm.test/**"
   cookie:
     domain: ".hotosm.test"
     http_only: true
