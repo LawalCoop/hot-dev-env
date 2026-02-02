@@ -125,6 +125,12 @@ install:
 	@echo "→ fAIr backend..."
 	@cd ../fAIr/backend && uv sync
 	@echo ""
+	@echo "→ Export Tool backend..."
+	@cd ../osm-export-tool && pip install -r requirements.txt 2>/dev/null || echo "   ⚠ Some deps require GDAL (OK - runs in Docker)"
+	@echo ""
+	@echo "→ Export Tool frontend..."
+	@cd ../osm-export-tool/ui && yarn install
+	@echo ""
 	@if [ -d "../chatmap/chatmap-ui" ]; then \
 		echo "→ ChatMap frontend..."; \
 		cd ../chatmap/chatmap-ui && yarn install; \
