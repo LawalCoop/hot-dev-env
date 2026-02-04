@@ -960,8 +960,8 @@ services:
       - EMAIL_USE_TLS=false
       # Overpass API
       - OVERPASS_API_URL=https://overpass-api.de/api/
-      # Raw Data API
-      - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
+      # Raw Data API (commented out for local dev - not accessible from local network)
+      # - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
       # HDX (required for settings to load, use dummy key for dev)
       - HDX_API_KEY=dev-hdx-api-key
       - HDX_SITE=demo
@@ -977,7 +977,7 @@ services:
       - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     command: >
       sh -c "
-        cd /app/ui && (yarn install || true) && (yarn run dist || true) &&
+        cd /app/ui && ([ -d node_modules ] || yarn install || true) && ([ -f static/ui/js/bundle.js ] || yarn run dist || true) &&
         cd /app &&
         python3 manage.py migrate --noinput &&
         python3 manage.py collectstatic --noinput || true &&
@@ -1030,7 +1030,8 @@ services:
       - EMAIL_USE_TLS=false
       # Overpass API
       - OVERPASS_API_URL=https://overpass-api.de/api/
-      - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
+      # Raw Data API (commented out for local dev - not accessible from local network)
+      # - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
       # HDX (required for settings to load, use dummy key for dev)
       - HDX_API_KEY=dev-hdx-api-key
       - HDX_SITE=demo
