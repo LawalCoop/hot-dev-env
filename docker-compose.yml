@@ -753,6 +753,17 @@ services:
       - ../umap/app:/app
       - /app/.venv  # Preserve .venv from build
       - ./certs/localhost.crt:/etc/ssl/certs/localhost.crt:ro
+      - ../login/auth-libs/web-component/dist/hanko-auth.esm.js:/app/custom/static/umap/js/hanko-auth.esm.js:ro
+    entrypoint: []
+    command: >
+      bash -c "
+        /app/scripts/wait-for-db.sh &&
+        uv run python manage.py collectstatic --noinput &&
+        uv run python manage.py migrate social_django &&
+        uv run python manage.py migrate &&
+        uv run python manage.py import_pictograms --attribution 'Maki Icons by Mapbox' /app/custom/icons &&
+        uv run python manage.py runserver 0.0.0.0:8000
+      "
     environment:
       - UMAP_SITE_URL=https://umap.hotosm.test
       - UMAP_SETTINGS=/app/settings.py
