@@ -24,6 +24,7 @@ APP_CONFIG["fair"]="hotosm-fair-db:fair:fair"
 APP_CONFIG["oam"]="hotosm-oam-db:postgres:postgres"
 APP_CONFIG["hanko"]="hotosm-hanko-db:hanko:hanko"
 APP_CONFIG["umap"]="hotosm-umap-db:umap:umap"
+APP_CONFIG["export-tool"]="hotosm-export-tool-db:exports:exports"
 
 # Backend containers (to stop before dropping DB)
 declare -A BACKEND_CONFIG
@@ -32,12 +33,13 @@ BACKEND_CONFIG["dronetm"]="hotosm-dronetm-backend"
 BACKEND_CONFIG["fair"]="hotosm-fair-backend"
 BACKEND_CONFIG["oam"]="hotosm-oam-backend"
 BACKEND_CONFIG["umap"]="hotosm-umap-app"
+BACKEND_CONFIG["export-tool"]="hotosm-export-tool-app"
 # hanko has no separate backend
 
 usage() {
     echo -e "${YELLOW}Usage:${NC} $0 <app> <dump_url_or_path>"
     echo ""
-    echo "Apps: portal, dronetm, fair, oam, hanko, umap"
+    echo "Apps: portal, dronetm, fair, oam, hanko, umap, export-tool"
     echo ""
     echo "Examples:"
     echo "  $0 dronetm https://example.com/dtm_dump.sql"
@@ -148,7 +150,7 @@ docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXI
 docker exec "$CONTAINER" psql -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME;"
 
 # Check if PostGIS is needed
-if [[ "$APP" == "portal" || "$APP" == "dronetm" || "$APP" == "fair" || "$APP" == "umap" ]]; then
+if [[ "$APP" == "portal" || "$APP" == "dronetm" || "$APP" == "fair" || "$APP" == "umap" || "$APP" == "export-tool" ]]; then
     echo -e "${YELLOW}→ Enabling PostGIS extension...${NC}"
     docker exec "$CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 fi
