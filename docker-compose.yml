@@ -939,6 +939,7 @@ services:
       - ../osm-export-tool:/app
       - export-tool-downloads:/app/export_downloads
       - ./config/export-tool-settings.py:/app/core/settings/docker.py:ro
+      - ../login/auth-libs/web-component/dist/hanko-auth.esm.js:/app/ui/static/ui/js/hanko-auth.esm.js:ro
     environment:
       - DATABASE_URL=postgis://exports:exports@export-tool-db:5432/exports
       - DEBUG=True
@@ -978,6 +979,7 @@ services:
     command: >
       sh -c "
         cd /app/ui && ([ -d node_modules ] || yarn install || true) && ([ -f static/ui/js/bundle.js ] || yarn run dist || true) &&
+        yarn run watch &
         cd /app &&
         python3 manage.py migrate --noinput &&
         python3 manage.py collectstatic --noinput || true &&
@@ -1053,4 +1055,16 @@ services:
         condition: service_healthy
       export-tool-redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Auth Libs Web Component Watcher (auto-rebuilds on source changes)
+  auth-libs-watch:
+    image: node:20-alpine
+    container_name: hotosm-auth-libs-watch
+    working_dir: /src
+    volumes:
+      - ../login/auth-libs/web-component:/src
+    command: sh -c "npm install --prefer-offline && npm run watch"
+    networks:
+      - hotosm
     restart: unless-stopped
