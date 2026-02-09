@@ -62,15 +62,71 @@ format_status() {
             echo -e "${RED}✗ failed${NC}"
             ;;
         "in_progress")
-            echo -e "${YELLOW}⏳ running${NC}"
+            echo -e "${YELLOW}~ running${NC}"
             ;;
         "queued")
-            echo -e "${YELLOW}⏳ queued${NC}"
+            echo -e "${YELLOW}~ queued${NC}"
             ;;
         *)
             echo "$status"
             ;;
     esac
+}
+
+# Function to get workflow status (returns short status)
+get_workflow_status() {
+    local repo="$1"
+    local workflow="$2"
+
+    local result=$(gh run list -R "$repo" --workflow "$workflow" -L 1 --json status,conclusion 2>/dev/null)
+
+    if [ -z "$result" ] || [ "$result" = "[]" ]; then
+        echo -e "${GRAY}-${NC}"
+        return
+    fi
+
+    local status=$(echo "$result" | jq -r '.[0].status // "unknown"')
+    local conclusion=$(echo "$result" | jq -r '.[0].conclusion // ""')
+
+    if [ "$status" = "completed" ]; then
+        if [ "$conclusion" = "success" ]; then
+            echo -e "${GREEN}✓${NC}"
+        else
+            echo -e "${RED}✗${NC}"
+        fi
+    elif [ "$status" = "in_progress" ] || [ "$status" = "queued" ]; then
+        echo -e "${YELLOW}~${NC}"
+    else
+        echo -e "${GRAY}-${NC}"
+    fi
+}
+
+# Function to check login prod with multiple workflows
+check_login_prod() {
+    local name="$1"
+    local env_name="$2"
+
+    # Get both statuses
+    local img_status=$(get_workflow_status "hotosm/login" "build-prod.yml")
+    local chart_status=$(get_workflow_status "hotosm/login" "release-chart.yml")
+
+    # Get latest time from build-prod workflow
+    local result=$(gh run list -R "hotosm/login" --workflow "build-prod.yml" -L 1 --json createdAt 2>/dev/null)
+    local time_ago=""
+    if [ -n "$result" ] && [ "$result" != "[]" ]; then
+        local created=$(echo "$result" | jq -r '.[0].createdAt // ""')
+        if [ -n "$created" ]; then
+            time_ago=$(date -d "$created" +"%d/%m %H:%M" 2>/dev/null || echo "")
+        fi
+    fi
+
+    # Use placeholder if no time
+    if [ -z "$time_ago" ]; then
+        time_ago="-"
+    fi
+
+    local combined_status="i:${img_status} c:${chart_status}"
+    printf "  %-15s %-40s %-14s %s\n" "$name" "$combined_status" "$time_ago" "$env_name"
 }
 
 # Function to check a repo
@@ -113,24 +169,25 @@ check_repo() {
         FAILED_RUNS+=("$name|$repo|$run_id")
     fi
 
-    # Format time (relative)
+    # Format time (date + hour)
     local time_ago=""
     if [ -n "$created" ]; then
-        time_ago=$(date -d "$created" +"%H:%M" 2>/dev/null || echo "")
+        time_ago=$(date -d "$created" +"%d/%m %H:%M" 2>/dev/null || echo "")
     fi
 
     local formatted_status=$(format_status "$final_status")
     # ANSI codes add ~11 chars, so we use 31 instead of 20 for alignment
-    printf "  %-15s %-31s %-10s %s\n" "$name" "$formatted_status" "$time_ago" "$env_name"
+    printf "  %-15s %-31s %-14s %s\n" "$name" "$formatted_status" "$time_ago" "$env_name"
 }
 
 echo ""
-printf "  %-15s %-20s %-10s %s\n" "APP" "STATUS" "TIME" "ENVIRONMENT"
+printf "  %-15s %-20s %-14s %s\n" "APP" "STATUS" "TIME" "ENVIRONMENT"
 echo "  ───────────────────────────────────────────────────────────────────────────"
 
 # Check each app - adjust branches as needed
 check_repo "Portal" "hotosm/portal" "develop" "portal.hotosm.org"
-check_repo "Login" "hotosm/login" "develop" "dev.login.hotosm.org"
+check_repo "Login (dev)" "hotosm/login" "develop" "dev.login.hotosm.org"
+check_login_prod "Login (prod)" "login.hotosm.org"
 check_repo "Drone-TM" "hotosm/drone-tm" "login-hanko" "testlogin.dronetm.hotosm.org"
 check_repo "fAIr" "hotosm/fAIr" "login_hanko" "testlogin.fair.hotosm.org"
 check_repo "uMap" "hotosm/umap" "login_hanko" "testlogin.umap.hotosm.org"
