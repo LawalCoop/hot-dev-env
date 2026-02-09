@@ -62,10 +62,10 @@ format_status() {
             echo -e "${RED}✗ failed${NC}"
             ;;
         "in_progress")
-            echo -e "${YELLOW}⏳ running${NC}"
+            echo -e "${YELLOW}~ running${NC}"
             ;;
         "queued")
-            echo -e "${YELLOW}⏳ queued${NC}"
+            echo -e "${YELLOW}~ queued${NC}"
             ;;
         *)
             echo "$status"
@@ -95,7 +95,7 @@ get_workflow_status() {
             echo -e "${RED}✗${NC}"
         fi
     elif [ "$status" = "in_progress" ] || [ "$status" = "queued" ]; then
-        echo -e "${YELLOW}⏳${NC}"
+        echo -e "${YELLOW}~${NC}"
     else
         echo -e "${GRAY}-${NC}"
     fi
