@@ -383,6 +383,7 @@ services:
       - S3_BUCKET_NAME=dtm-bucket
       - S3_DOWNLOAD_ROOT=https://s3.hotosm.test
       - REDIS_URL=redis://redis:6379
+      - DRAGONFLY_DSN=redis://redis:6379/0
       - DEBUG=true
       - LOG_LEVEL=DEBUG
       - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
@@ -398,9 +399,7 @@ services:
       - "traefik.http.routers.dronetm-backend.rule=Host(`dronetm.hotosm.test`) && PathPrefix(`/api`)"
       - "traefik.http.routers.dronetm-backend.entrypoints=websecure"
       - "traefik.http.routers.dronetm-backend.tls=true"
-      - "traefik.http.routers.dronetm-backend.middlewares=dronetm-strip-api"
-      # Middleware to strip /api prefix before forwarding to backend
-      - "traefik.http.middlewares.dronetm-strip-api.stripprefix.prefixes=/api"
+      # Note: Do NOT strip /api prefix - the backend expects routes under /api/*
       # Note: Portal integration routes (/api/drone-tasking-manager/*) are handled by portal-backend
       # which proxies to drone-tm with proper URL translation (e.g., /projects/user -> /projects/?filter_by_owner=true)
       # Service configuration
