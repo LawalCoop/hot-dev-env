@@ -48,6 +48,7 @@ webauthn:
 
 email:
   require_verification: true
+  use_for_authentication: false
 
 passcode:
   enabled: true
