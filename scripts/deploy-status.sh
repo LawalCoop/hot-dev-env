@@ -81,7 +81,7 @@ get_workflow_status() {
     local result=$(gh run list -R "$repo" --workflow "$workflow" -L 1 --json status,conclusion 2>/dev/null)
 
     if [ -z "$result" ] || [ "$result" = "[]" ]; then
-        echo "—"
+        echo -e "${GRAY}-${NC}"
         return
     fi
 
@@ -97,7 +97,7 @@ get_workflow_status() {
     elif [ "$status" = "in_progress" ] || [ "$status" = "queued" ]; then
         echo -e "${YELLOW}⏳${NC}"
     else
-        echo "—"
+        echo -e "${GRAY}-${NC}"
     fi
 }
 
@@ -120,9 +120,13 @@ check_login_prod() {
         fi
     fi
 
-    # Combined status fits in STATUS column
-    local combined_status="img:${img_status} chart:${chart_status}"
-    printf "  %-15s %-31s %-14s %s\n" "$name" "$combined_status" "$time_ago" "$env_name"
+    # Use placeholder if no time
+    if [ -z "$time_ago" ]; then
+        time_ago="-"
+    fi
+
+    local combined_status="i:${img_status} c:${chart_status}"
+    printf "  %-15s %-40s %-14s %s\n" "$name" "$combined_status" "$time_ago" "$env_name"
 }
 
 # Function to check a repo
