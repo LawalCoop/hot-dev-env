@@ -114,10 +114,12 @@ services:
       - ADMIN_EMAILS=${ADMIN_EMAILS:-admin@hotosm.org}
       - DRONE_TM_BACKEND_URL=https://dronetm.hotosm.test/api
       - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
+      - UMAP_BASE_URL=https://umap.hotosm.test
     extra_hosts:
       - "dronetm.hotosm.test:host-gateway"
       - "fair.hotosm.test:host-gateway"
       - "login.hotosm.test:host-gateway"
+      - "umap.hotosm.test:host-gateway"
     command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     networks:
       - hotosm
@@ -681,6 +683,44 @@ services:
       - "traefik.http.routers.fair-backend.entrypoints=websecure"
       - "traefik.http.routers.fair-backend.tls=true"
       - "traefik.http.services.fair-backend.loadbalancer.server.port=8000"
+    depends_on:
+      fair-db:
+        condition: service_healthy
+      fair-redis:
+        condition: service_healthy
+
+  # fAIr Worker (Django-Q for background tasks like OSM label fetching)
+  fair-worker:
+    build:
+      context: ../fAIr/backend
+      dockerfile: Dockerfile.API
+    container_name: hotosm-fair-worker
+    volumes:
+      - ../fAIr/backend:/app
+      - /app/.venv  # Preserve .venv from build
+    environment:
+      - DATABASE_URL=postgis://fair:fair@fair-db:5432/fair
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
+      - HANKO_API_URL=http://hanko:8000
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - OSM_CLIENT_ID=${OSM_CLIENT_ID}
+      - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
+      - OSM_LOGIN_REDIRECT_URI=https://fair.hotosm.test/authenticate
+      - OSM_REDIRECT_URI=https://fair.hotosm.test/api/v1/auth/osm/callback/
+      - REDIS_URL=redis://fair-redis:6379
+      - CELERY_BROKER_URL=redis://fair-redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://fair-redis:6379/0
+      - DEBUG=True
+      - ALLOWED_HOSTS=fair.hotosm.test,localhost,fair-backend
+      - CORS_ALLOWED_ORIGINS=https://fair.hotosm.test,https://login.hotosm.test
+      - FRONTEND_URL=https://fair.hotosm.test
+      - LOGIN_URL=https://login.hotosm.test
+      - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
+    command: python manage.py qcluster
+    networks:
+      - hotosm
     depends_on:
       fair-db:
         condition: service_healthy
