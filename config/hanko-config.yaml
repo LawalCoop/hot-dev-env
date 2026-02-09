@@ -27,9 +27,9 @@ secrets:
 
 service:
   name: "HOTOSM Portal (Dev)"
-  
+
 account:
-    allow_deletion: true
+  allow_deletion: true
 
 webauthn:
   enabled: false
@@ -51,7 +51,7 @@ email:
   use_for_authentication: false
 
 passcode:
-  enabled: true
+  enabled: false
   ttl: 300
 
 password:
