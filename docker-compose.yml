@@ -407,9 +407,12 @@ services:
       # Service configuration
       - "traefik.http.services.dronetm-backend.loadbalancer.server.port=8000"
     depends_on:
-      - dronetm-db
-      - minio
-      - redis
+      dronetm-db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # Drone-TM Database
   dronetm-db:
