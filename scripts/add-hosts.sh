@@ -21,10 +21,12 @@ HOSTS_ENTRIES=(
     "127.0.0.1 umap.hotosm.test"
     "127.0.0.1 chatmap.hotosm.test"
     "127.0.0.1 export-tool.hotosm.test"
+    "127.0.0.1 raw-data-api.hotosm.test"
     "127.0.0.1 login.hotosm.test"
     "127.0.0.1 mail.hotosm.test"
     "127.0.0.1 minio.hotosm.test"
     "127.0.0.1 s3.hotosm.test"
+    "127.0.0.1 tm.hotosm.test"
     "127.0.0.1 traefik.hotosm.test"
 )
 

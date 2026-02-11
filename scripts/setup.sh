@@ -49,6 +49,8 @@ declare -A REPO_URLS=(
     ["umap"]="https://github.com/hotosm/umap.git"
     ["chatmap"]="https://github.com/hotosm/chatmap.git"
     ["osm-export-tool"]="https://github.com/hotosm/osm-export-tool.git"
+    ["raw-data-api"]="https://github.com/hotosm/raw-data-api.git"
+    ["tasking-manager"]="https://github.com/hotosm/tasking-manager.git"
 )
 
 declare -A REPO_URLS_SSH=(
@@ -61,6 +63,8 @@ declare -A REPO_URLS_SSH=(
     ["umap"]="git@github.com:hotosm/umap.git"
     ["chatmap"]="git@github.com:hotosm/chatmap.git"
     ["osm-export-tool"]="git@github.com:hotosm/osm-export-tool.git"
+    ["raw-data-api"]="git@github.com:hotosm/raw-data-api.git"
+    ["tasking-manager"]="git@github.com:hotosm/tasking-manager.git"
 )
 
 if [[ ! -d "../portal" ]]; then
@@ -97,6 +101,14 @@ fi
 
 if [[ ! -d "../osm-export-tool" ]]; then
     MISSING_REPOS+=("osm-export-tool")
+fi
+
+if [[ ! -d "../raw-data-api" ]]; then
+    MISSING_REPOS+=("raw-data-api")
+fi
+
+if [[ ! -d "../tasking-manager" ]]; then
+    MISSING_REPOS+=("tasking-manager")
 fi
 
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
@@ -218,7 +230,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         exit 1
     fi
 else
-    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap, osm-export-tool)"
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap, osm-export-tool, raw-data-api, tasking-manager)"
     echo ""
 
     # Ensure portal and login repos are on develop branch
@@ -356,6 +368,15 @@ else
     echo "  ✓ ../umap/.env already exists"
 fi
 
+if [[ ! -f "../tasking-manager/tasking-manager.env" ]]; then
+    if [[ -f "../tasking-manager/example.env" ]]; then
+        cp ../tasking-manager/example.env ../tasking-manager/tasking-manager.env
+        echo "  ✓ Created ../tasking-manager/tasking-manager.env (please review and update)"
+    fi
+else
+    echo "  ✓ ../tasking-manager/tasking-manager.env already exists"
+fi
+
 echo ""
 
 # Configure /etc/hosts
@@ -376,6 +397,7 @@ echo "     - ../drone-tm/.env"
 echo "     - ../openaerialmap/.env"
 echo "     - ../fAIr/backend/.env"
 echo "     - ../umap/.env"
+echo "     - ../tasking-manager/tasking-manager.env"
 echo ""
 echo "  2. (Optional) Update Google OAuth credentials in:"
 echo "     - ./config/hanko-config.yaml"
@@ -394,7 +416,9 @@ echo "  fAIr:            https://fair.hotosm.test"
 echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 echo "  uMap:            https://umap.hotosm.test"
 echo "  ChatMap:         https://chatmap.hotosm.test"
+echo "  Tasking Mgr:     https://tm.hotosm.test"
 echo "  Export Tool:     https://export-tool.hotosm.test"
+echo "  Raw Data API:    https://raw-data-api.hotosm.test"
 echo "  Hanko Auth:      https://login.hotosm.test"
 echo "  MinIO Console:   https://minio.hotosm.test"
 echo "  Traefik:         https://traefik.hotosm.test"

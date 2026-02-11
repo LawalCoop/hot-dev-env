@@ -22,6 +22,8 @@ volumes:
   umap-db-data:
   export-tool-db-data:
   export-tool-downloads:
+  raw-data-api-db-data:
+  tm-db-data:
 
 services:
   # ==========================================
@@ -115,9 +117,11 @@ services:
       - DRONE_TM_BACKEND_URL=https://dronetm.hotosm.test/api
       - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
       - UMAP_BASE_URL=https://umap.hotosm.test
+      - EXPORT_TOOL_API_BASE_URL=https://export-tool.hotosm.test/api
     extra_hosts:
       - "dronetm.hotosm.test:host-gateway"
       - "fair.hotosm.test:host-gateway"
+      - "export-tool.hotosm.test:host-gateway"
       - "login.hotosm.test:host-gateway"
       - "umap.hotosm.test:host-gateway"
     command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
@@ -1014,8 +1018,10 @@ services:
       - EMAIL_USE_TLS=false
       # Overpass API
       - OVERPASS_API_URL=https://overpass-api.de/api/
-      # Raw Data API (commented out for local dev - not accessible from local network)
-      # - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
+      # Raw Data API (internal URL for backend/worker processing)
+      - RAW_DATA_API_URL=http://raw-data-api:8000/
+      # Raw Data API (public URL for browser JS requests via Traefik)
+      - RAW_DATA_API_PUBLIC_URL=https://raw-data-api.hotosm.test/
       # HDX (required for settings to load, use dummy key for dev)
       - HDX_API_KEY=dev-hdx-api-key
       - HDX_SITE=demo
@@ -1085,8 +1091,8 @@ services:
       - EMAIL_USE_TLS=false
       # Overpass API
       - OVERPASS_API_URL=https://overpass-api.de/api/
-      # Raw Data API (commented out for local dev - not accessible from local network)
-      # - RAW_DATA_API_URL=https://api-stage.raw-data.hotosm.org/
+      # Raw Data API
+      - RAW_DATA_API_URL=http://raw-data-api:8000/
       # HDX (required for settings to load, use dummy key for dev)
       - HDX_API_KEY=dev-hdx-api-key
       - HDX_SITE=demo
@@ -1108,6 +1114,225 @@ services:
         condition: service_healthy
       export-tool-redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  # ==========================================
+  # Raw Data API - OSM data extraction backend
+  # ==========================================
+
+  raw-data-api-db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: hotosm-raw-data-api-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=raw
+    volumes:
+      - raw-data-api-db-data:/var/lib/postgresql/data
+      - ../raw-data-api/tests/fixtures/pokhara.sql:/docker-entrypoint-initdb.d/pokhara.sql
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d raw"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  raw-data-api:
+    build:
+      context: ../raw-data-api
+    container_name: hotosm-raw-data-api
+    volumes:
+      - ../raw-data-api/API:/home/appuser/API
+      - ../raw-data-api/src:/home/appuser/src
+    environment:
+      - PGHOST=raw-data-api-db
+      - PGUSER=postgres
+      - PGPASSWORD=admin
+      - PGDATABASE=raw
+      - PGPORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - RATE_LIMITER_STORAGE_URI=redis://redis:6379/1
+      - LOG_LEVEL=info
+      - EXPORT_PATH=/tmp/exports
+      - ENABLE_POLYGON_STATISTICS_ENDPOINTS=true
+      - ENABLE_CUSTOM_EXPORTS=true
+      - OSM_URL=https://www.openstreetmap.org
+      - OSM_CLIENT_ID=dummy
+      - OSM_CLIENT_SECRET=dummy
+      - APP_SECRET_KEY=dev-secret-key-raw-data-api
+      - LOGIN_REDIRECT_URI=https://raw-data-api.hotosm.test/v1/auth/callback
+      - OSM_PERMISSION_SCOPE=read_prefs
+    command: uvicorn API.main:app --reload --host 0.0.0.0 --port 8000 --no-use-colors --proxy-headers
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.raw-data-api.rule=Host(`raw-data-api.hotosm.test`)"
+      - "traefik.http.routers.raw-data-api.entrypoints=websecure"
+      - "traefik.http.routers.raw-data-api.tls=true"
+      - "traefik.http.services.raw-data-api.loadbalancer.server.port=8000"
+    depends_on:
+      raw-data-api-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  raw-data-api-worker:
+    build:
+      context: ../raw-data-api
+    container_name: hotosm-raw-data-api-worker
+    volumes:
+      - ../raw-data-api/API:/home/appuser/API
+      - ../raw-data-api/src:/home/appuser/src
+    environment:
+      - PGHOST=raw-data-api-db
+      - PGUSER=postgres
+      - PGPASSWORD=admin
+      - PGDATABASE=raw
+      - PGPORT=5432
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - LOG_LEVEL=info
+      - EXPORT_PATH=/tmp/exports
+      - ENABLE_CUSTOM_EXPORTS=true
+      - OSM_URL=https://www.openstreetmap.org
+      - OSM_CLIENT_ID=dummy
+      - OSM_CLIENT_SECRET=dummy
+      - APP_SECRET_KEY=dev-secret-key-raw-data-api
+      - LOGIN_REDIRECT_URI=https://raw-data-api.hotosm.test/v1/auth/callback
+      - OSM_PERMISSION_SCOPE=read_prefs
+    command: celery --app API.api_worker worker --loglevel=INFO --queues="raw_ondemand" -n "default_worker"
+    networks:
+      - hotosm
+    depends_on:
+      raw-data-api-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ==========================================
+  # Tasking Manager
+  # ==========================================
+
+  # TM Database (PostGIS)
+  tm-db:
+    image: postgis/postgis:14-3.3
+    container_name: hotosm-tm-db
+    environment:
+      - POSTGRES_USER=tm
+      - POSTGRES_PASSWORD=tm
+      - POSTGRES_DB=tasking-manager
+    volumes:
+      - tm-db-data:/var/lib/postgresql/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tm -d tasking-manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TM Database Migrations (one-shot, runs before backend)
+  tm-migration:
+    build:
+      context: ../tasking-manager
+      dockerfile: scripts/docker/Dockerfile
+      target: debug
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: hotosm-tm-migration
+    entrypoint: ["alembic", "-c", "migrations/alembic.ini", "upgrade", "head"]
+    env_file:
+      - ./config/tasking-manager.env
+    volumes:
+      - ../tasking-manager/backend:/usr/src/app/backend
+      - ../tasking-manager/migrations:/usr/src/app/migrations
+    depends_on:
+      tm-db:
+        condition: service_healthy
+    networks:
+      - hotosm
+    restart: "no"
+
+  # TM Backend (FastAPI + uvicorn --reload for live editing)
+  tm-backend:
+    build:
+      context: ../tasking-manager
+      dockerfile: scripts/docker/Dockerfile
+      target: debug
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: hotosm-tm-backend
+    volumes:
+      - ../tasking-manager/backend:/usr/src/app/backend
+      - ../tasking-manager/migrations:/usr/src/app/migrations
+      - ../tasking-manager/pyproject.toml:/usr/src/app/pyproject.toml
+      - ../tasking-manager/uv.lock:/usr/src/app/uv.lock
+    env_file:
+      - ./config/tasking-manager.env
+    environment:
+      - OAUTHLIB_INSECURE_TRANSPORT=1
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tm-backend.rule=Host(`tm.hotosm.test`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.tm-backend.entrypoints=websecure"
+      - "traefik.http.routers.tm-backend.tls=true"
+      - "traefik.http.services.tm-backend.loadbalancer.server.port=5000"
+    depends_on:
+      tm-db:
+        condition: service_healthy
+      tm-migration:
+        condition: service_completed_successfully
+
+  # TM Frontend (React + Craco dev server with HMR for live editing)
+  tm-frontend:
+    build:
+      context: ../tasking-manager
+      dockerfile: scripts/docker/Dockerfile.frontend
+      target: debug
+    container_name: hotosm-tm-frontend
+    volumes:
+      - ../tasking-manager/frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    env_file:
+      - ./config/tasking-manager.env
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tm-frontend.rule=Host(`tm.hotosm.test`)"
+      - "traefik.http.routers.tm-frontend.entrypoints=websecure"
+      - "traefik.http.routers.tm-frontend.tls=true"
+      - "traefik.http.services.tm-frontend.loadbalancer.server.port=3000"
+    depends_on:
+      - tm-backend
+
+  # TM Cron Jobs (background task scheduler)
+  tm-cron-jobs:
+    build:
+      context: ../tasking-manager
+      dockerfile: scripts/docker/Dockerfile
+      target: debug
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: hotosm-tm-cron-jobs
+    command: ["python", "backend/cron_jobs.py"]
+    env_file:
+      - ./config/tasking-manager.env
+    environment:
+      - PYTHONPATH=/usr/src/app
+    depends_on:
+      tm-db:
+        condition: service_healthy
+    networks:
+      - hotosm
     restart: unless-stopped
 
   # Auth Libs Web Component Watcher (auto-rebuilds on source changes)

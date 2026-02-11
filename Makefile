@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-umap dev-export-tool stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-tm dev-umap dev-export-tool dev-raw-data-api stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -26,7 +26,9 @@ help:
 	@echo "  make dev-oam        - Start OpenAerialMap only"
 	@echo "  make dev-umap       - Start uMap only"
 	@echo "  make dev-chatmap    - Start ChatMap only"
+	@echo "  make dev-tm          - Start Tasking Manager only"
 	@echo "  make dev-export-tool - Start Export Tool only"
+	@echo "  make dev-raw-data-api - Start Raw Data API only"
 	@echo ""
 	@echo "Management:"
 	@echo "  make stop           - Stop all services"
@@ -48,7 +50,7 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make load-dump APP=<app> URL=<url> - Load database dump"
-	@echo "    Apps: portal, dronetm, fair, oam, hanko"
+	@echo "    Apps: portal, dronetm, fair, oam, hanko, tm"
 	@echo "  make setup-test-users [APP=<app>]  - Setup test users for Hanko SSO"
 	@echo "    Run after load-dump to assign users with data to test team"
 	@echo ""
@@ -60,7 +62,9 @@ help:
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
+	@echo "  Tasking Mgr:     https://tm.hotosm.test"
 	@echo "  Export Tool:     https://export-tool.hotosm.test"
+	@echo "  Raw Data API:    https://raw-data-api.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -136,6 +140,15 @@ install:
 		cd ../chatmap/chatmap-ui && yarn install; \
 	fi
 	@echo ""
+	@if [ -d "../tasking-manager/frontend" ]; then \
+		echo "→ Tasking Manager frontend..."; \
+		cd ../tasking-manager/frontend && yarn install; \
+	fi
+	@if [ -d "../tasking-manager" ]; then \
+		echo "→ Tasking Manager backend..."; \
+		cd ../tasking-manager && uv sync || echo "   ⚠ Some deps require system libraries (OK - runs in Docker)"; \
+	fi
+	@echo ""
 	@echo "✓ All dependencies installed"
 	@echo ""
 	@echo "Next: make dev"
@@ -173,7 +186,9 @@ dev:
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
+	@echo "  Tasking Mgr:     https://tm.hotosm.test"
 	@echo "  Export Tool:     https://export-tool.hotosm.test"
+	@echo "  Raw Data API:    https://raw-data-api.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -214,9 +229,17 @@ dev-chatmap:
 	@echo "Starting ChatMap services..."
 	docker compose up chatmap-frontend hanko hanko-db mailhog traefik --build
 
+dev-tm:
+	@echo "Starting Tasking Manager services..."
+	docker compose up tm-frontend tm-backend tm-db tm-migration tm-cron-jobs mailhog traefik --build
+
 dev-export-tool:
-	@echo "Starting Export Tool services..."
-	docker compose up export-tool-app export-tool-worker export-tool-db export-tool-redis mailhog traefik --build
+	@echo "Starting Export Tool services (with Raw Data API)..."
+	docker compose up export-tool-app export-tool-worker export-tool-db export-tool-redis raw-data-api raw-data-api-db raw-data-api-worker redis mailhog traefik --build
+
+dev-raw-data-api:
+	@echo "Starting Raw Data API services..."
+	docker compose up raw-data-api raw-data-api-db raw-data-api-worker redis traefik --build
 
 # ==================
 # Management
@@ -266,6 +289,13 @@ health:
 	@echo ""
 	@echo "Export Tool:"
 	@curl -f -s https://export-tool.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
+	@echo ""
+	@echo "Raw Data API:"
+	@curl -f -s https://raw-data-api.hotosm.test/v1 > /dev/null && echo "  ✓ API" || echo "  ✗ API"
+	@echo ""
+	@echo "Tasking Manager:"
+	@curl -f -s -k https://tm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@curl -f -s -k https://tm.hotosm.test/api/docs > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "Shared:"
 	@curl -f -s https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
@@ -331,6 +361,8 @@ update:
 	@cd ../umap && git pull && echo "  ✓ uMap"
 	@cd ../chatmap && git pull && echo "  ✓ ChatMap"
 	@cd ../osm-export-tool && git pull && echo "  ✓ Export Tool"
+	@cd ../raw-data-api && git pull && echo "  ✓ Raw Data API"
+	@cd ../tasking-manager && git pull && echo "  ✓ Tasking Manager"
 	@cd ../auth-libs && git pull && echo "  ✓ Auth-libs"
 	@echo ""
 	@echo "✓ Updated. Run 'make install' if dependencies changed."
@@ -350,7 +382,7 @@ load-dump:
 	@if [ -z "$(APP)" ] || [ -z "$(URL)" ]; then \
 		echo "Usage: make load-dump APP=<app> URL=<dump_url_or_path>"; \
 		echo ""; \
-		echo "Apps: portal, dronetm, fair, oam, umap, hanko"; \
+		echo "Apps: portal, dronetm, fair, oam, umap, hanko, tm"; \
 		echo ""; \
 		echo "Examples:"; \
 		echo "  make load-dump APP=dronetm URL=https://example.com/dtm_dump.sql"; \
