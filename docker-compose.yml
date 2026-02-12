@@ -791,6 +791,7 @@ services:
 
   # uMap Application (Django)
   umap-app:
+    platform: linux/amd64
     build:
       context: ../umap/app
       dockerfile: Dockerfile
@@ -1219,7 +1220,7 @@ services:
 
   # TM Database (PostGIS)
   tm-db:
-    image: postgis/postgis:14-3.3
+    image: postgis/postgis:14-3.4
     container_name: hotosm-tm-db
     environment:
       - POSTGRES_USER=tm
