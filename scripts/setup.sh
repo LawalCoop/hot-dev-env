@@ -377,6 +377,18 @@ else
     echo "  ✓ ../tasking-manager/tasking-manager.env already exists"
 fi
 
+if [[ ! -f "../raw-data-api/.env" ]]; then
+    if [[ -f "../raw-data-api/.env.example" ]]; then
+        cp ../raw-data-api/.env.example ../raw-data-api/.env
+        echo "  ✓ Created ../raw-data-api/.env (please review and update)"
+    elif [[ -f "../raw-data-api/env.sample" ]]; then
+        cp ../raw-data-api/env.sample ../raw-data-api/.env
+        echo "  ✓ Created ../raw-data-api/.env (please review and update)"
+    fi
+else
+    echo "  ✓ ../raw-data-api/.env already exists"
+fi
+
 echo ""
 
 # Configure /etc/hosts
@@ -398,6 +410,7 @@ echo "     - ../openaerialmap/.env"
 echo "     - ../fAIr/backend/.env"
 echo "     - ../umap/.env"
 echo "     - ../tasking-manager/tasking-manager.env"
+echo "     - ../raw-data-api/.env"
 echo ""
 echo "  2. (Optional) Update Google OAuth credentials in:"
 echo "     - ./config/hanko-config.yaml"

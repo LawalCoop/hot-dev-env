@@ -149,6 +149,11 @@ install:
 		cd ../tasking-manager && uv sync || echo "   ⚠ Some deps require system libraries (OK - runs in Docker)"; \
 	fi
 	@echo ""
+	@if [ -d "../raw-data-api" ]; then \
+		echo "→ Raw Data API..."; \
+		cd ../raw-data-api && pip install -e . 2>/dev/null || echo "   ⚠ Some deps require GDAL/system libs (OK - runs in Docker)"; \
+	fi
+	@echo ""
 	@echo "✓ All dependencies installed"
 	@echo ""
 	@echo "Next: make dev"
