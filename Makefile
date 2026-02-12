@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-tm dev-umap dev-export-tool dev-raw-data-api stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -24,6 +24,7 @@ help:
 	@echo "  make dev-login      - Start Login only (requires frontend/backend)"
 	@echo "  make dev-dronetm    - Start Drone-TM only"
 	@echo "  make dev-oam        - Start OpenAerialMap only"
+	@echo "  make dev-fair       - Start fAIr only"
 	@echo "  make dev-umap       - Start uMap only"
 	@echo "  make dev-chatmap    - Start ChatMap only"
 	@echo "  make dev-tm          - Start Tasking Manager only"
@@ -226,13 +227,17 @@ dev-oam:
 	@echo "Starting OpenAerialMap services..."
 	docker compose up oam-frontend oam-backend oam-db hanko hanko-db mailhog traefik --build
 
+dev-fair:
+	@echo "Starting fAIr services..."
+	docker compose up fair-frontend fair-backend fair-worker fair-db fair-redis hanko hanko-db mailhog traefik --build
+
 dev-umap:
 	@echo "Starting uMap services..."
 	docker compose up umap-app umap-db hanko hanko-db mailhog traefik --build
 
 dev-chatmap:
 	@echo "Starting ChatMap services..."
-	docker compose up chatmap-frontend hanko hanko-db mailhog traefik --build
+	docker compose up chatmap-frontend chatmap-backend chatmap-db chatmap-go redis hanko hanko-db mailhog traefik --build
 
 dev-tm:
 	@echo "Starting Tasking Manager services..."
