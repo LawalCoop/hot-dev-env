@@ -195,7 +195,7 @@ check_repo "ChatMap" "hotosm/chatmap" "develop" "chatmap-dev.hotosm.org"
 check_repo "OAM" "hotosm/openaerialmap" "login_hanko" "—"
 check_repo "Export Tool" "hotosm/osm-export-tool" "login_hanko" "testlogin.export.hotosm.org"
 check_repo "Raw Data API" "hotosm/raw-data-api" "main" "api-prod.raw-data.hotosm.org"
-check_repo "Tasking Mgr" "hotosm/tasking-manager" "main" "tasks.hotosm.org"
+check_repo "Tasking Manager" "hotosm/tasking-manager" "main" "tasks.hotosm.org"
 
 echo ""
 

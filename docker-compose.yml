@@ -117,7 +117,7 @@ services:
       - DRONE_TM_BACKEND_URL=https://dronetm.hotosm.test/api
       - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
       - UMAP_BASE_URL=https://umap.hotosm.test
-      - EXPORT_TOOL_API_BASE_URL=https://export-tool.hotosm.test/api
+      - EXPORT_TOOL_API_BASE_URL=http://export-tool-app:8000/api
     extra_hosts:
       - "dronetm.hotosm.test:host-gateway"
       - "fair.hotosm.test:host-gateway"

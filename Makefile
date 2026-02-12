@@ -62,7 +62,7 @@ help:
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
-	@echo "  Tasking Mgr:     https://tm.hotosm.test"
+	@echo "  Tasking Manager:     https://tm.hotosm.test"
 	@echo "  Export Tool:     https://export-tool.hotosm.test"
 	@echo "  Raw Data API:    https://raw-data-api.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
