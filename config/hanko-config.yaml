@@ -31,6 +31,15 @@ service:
 account:
   allow_deletion: true
 
+passkey:
+  enabled: false
+  acquire_on_login: never
+  acquire_on_registration: never
+
+mfa:
+  security_keys:
+    enabled: false
+
 webauthn:
   enabled: false
   relying_party:
