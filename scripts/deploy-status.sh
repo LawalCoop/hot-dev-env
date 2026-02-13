@@ -185,7 +185,8 @@ printf "  %-15s %-20s %-14s %s\n" "APP" "STATUS" "TIME" "ENVIRONMENT"
 echo "  ───────────────────────────────────────────────────────────────────────────"
 
 # Check each app - adjust branches as needed
-check_repo "Portal" "hotosm/portal" "develop" "portal.hotosm.org"
+check_repo "Portal (dev)" "hotosm/portal" "develop" "dev.portal.hotosm.org"
+check_repo "Portal (prod)" "hotosm/portal" "main" "portal.hotosm.org"
 check_repo "Login (dev)" "hotosm/login" "develop" "dev.login.hotosm.org"
 check_login_prod "Login (prod)" "login.hotosm.org"
 check_repo "Drone-TM" "hotosm/drone-tm" "login-hanko" "testlogin.dronetm.hotosm.org"
