@@ -195,7 +195,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
                     cd ..
                 fi
 
-                if [[ "$repo" == "openaerialmap" ]]; then
+                if [[ "$repo" == "openaerialmap" ]] || [[ "$repo" == "raw-data-api" ]]; then
                     cd "$repo"
                     BRANCH_NAME="login_hanko"
                     BRANCH_EXISTS=$(git show-ref --verify --quiet refs/heads/$BRANCH_NAME && echo "yes" || echo "no")
@@ -253,9 +253,9 @@ else
         fi
     done
 
-    # Ensure drone-tm, openaerialmap, fAIr, umap, y chatmap repos are on their dev branches
+    # Ensure drone-tm, openaerialmap, fAIr, umap, chatmap, raw-data-api repos are on their dev branches
     # drone-tm uses login-hanko, chatmap uses feature/hotosm-auth, others use login_hanko
-    for repo in drone-tm openaerialmap fAIr umap chatmap; do
+    for repo in drone-tm openaerialmap fAIr umap chatmap raw-data-api; do
         if [[ -d "../$repo" ]]; then
             cd "../$repo"
             CURRENT_BRANCH=$(git branch --show-current 2>/dev/null)

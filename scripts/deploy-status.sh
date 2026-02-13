@@ -8,35 +8,33 @@
 # ============================================================================
 
 install_gum() {
-    echo "📦 Installing gum for beautiful CLI output..."
+    echo "Installing gum for beautiful CLI output..."
     echo ""
 
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
         if command -v brew &> /dev/null; then
             brew install gum
         else
-            echo "❌ Homebrew not installed. Install from https://brew.sh"
+            echo "Homebrew not installed. Install from https://brew.sh"
             exit 1
         fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Ubuntu/Debian
         if command -v apt &> /dev/null; then
             sudo mkdir -p /etc/apt/keyrings
             curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg
             echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | sudo tee /etc/apt/sources.list.d/charm.list
             sudo apt update && sudo apt install -y gum
         else
-            echo "❌ apt not available. Install gum manually: https://github.com/charmbracelet/gum"
+            echo "apt not available. Install gum manually: https://github.com/charmbracelet/gum"
             exit 1
         fi
     else
-        echo "❌ Unsupported OS. Install gum manually: https://github.com/charmbracelet/gum"
+        echo "Unsupported OS. Install gum manually: https://github.com/charmbracelet/gum"
         exit 1
     fi
 
     echo ""
-    echo "✅ gum installed successfully!"
+    echo "gum installed successfully!"
     echo ""
 }
 
@@ -46,19 +44,19 @@ install_gum() {
 
 check_deps() {
     if ! command -v gh &> /dev/null; then
-        echo "❌ gh CLI not installed. Install from https://cli.github.com/"
+        echo "gh CLI not installed. Install from https://cli.github.com/"
         exit 1
     fi
 
     if ! command -v jq &> /dev/null; then
-        echo "❌ jq not installed."
+        echo "jq not installed."
         echo "   Mac:   brew install jq"
         echo "   Linux: sudo apt install jq"
         exit 1
     fi
 
     if ! gh auth status &> /dev/null; then
-        echo "❌ gh CLI not authenticated. Run: gh auth login"
+        echo "gh CLI not authenticated. Run: gh auth login"
         exit 1
     fi
 
@@ -89,7 +87,7 @@ get_status() {
 
     local time_str=""
     if [ -n "$created" ]; then
-        time_str=$(date -d "$created" +"%H:%M" 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$created" +"%H:%M" 2>/dev/null || echo "")
+        time_str=$(date -d "$created" +"%Y-%m-%d %H:%M" 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$created" +"%Y-%m-%d %H:%M" 2>/dev/null || echo "")
     fi
 
     if [ "$status" = "completed" ]; then
@@ -109,10 +107,9 @@ get_status() {
 # Dashboard Display
 # ============================================================================
 
-# Store failed runs for later
 declare -a FAILED_RUNS
 
-print_row() {
+print_card() {
     local app="$1"
     local dev_data="$2"
     local prod_data="$3"
@@ -129,109 +126,196 @@ print_row() {
     local prod_time=$(echo "$prod_data" | cut -d'|' -f2)
     local prod_run_id=$(echo "$prod_data" | cut -d'|' -f3)
 
+    # Determine card color based on status
+    local border_color="240"  # gray default
+
+    if [ "$dev_status" = "failure" ] || [ "$prod_status" = "failure" ]; then
+        border_color="196"  # red
+    elif [ "$dev_status" = "running" ] || [ "$prod_status" = "running" ]; then
+        border_color="220"  # yellow
+    elif [ "$dev_status" = "success" ] || [ "$prod_status" = "success" ]; then
+        border_color="82"   # green
+    fi
+
     # Track failures
     if [ "$dev_status" = "failure" ] && [ -n "$dev_run_id" ]; then
-        FAILED_RUNS+=("$app (dev)|$dev_repo|$dev_run_id")
+        FAILED_RUNS+=("$app|dev|$dev_repo|$dev_run_id")
     fi
     if [ "$prod_status" = "failure" ] && [ -n "$prod_run_id" ]; then
-        FAILED_RUNS+=("$app (prod)|$prod_repo|$prod_run_id")
+        FAILED_RUNS+=("$app|prod|$prod_repo|$prod_run_id")
     fi
 
-    # Format dev status
-    local dev_display
+    # Build status icons
+    local dev_icon prod_icon
     case "$dev_status" in
-        "success") dev_display=$(gum style --foreground 82 "✓ $dev_url") ;;
-        "failure") dev_display=$(gum style --foreground 196 "✗ $dev_url") ;;
-        "running") dev_display=$(gum style --foreground 220 "◐ $dev_url") ;;
-        *) dev_display=$(gum style --foreground 240 "○ —") ;;
+        "success") dev_icon="✓" ;;
+        "failure") dev_icon="✗" ;;
+        "running") dev_icon="◐" ;;
+        *) dev_icon="○" ;;
     esac
 
-    # Format prod status
-    local prod_display
     case "$prod_status" in
-        "success") prod_display=$(gum style --foreground 82 "✓ $prod_url") ;;
-        "failure") prod_display=$(gum style --foreground 196 "✗ $prod_url") ;;
-        "running") prod_display=$(gum style --foreground 220 "◐ $prod_url") ;;
-        *) prod_display=$(gum style --foreground 240 "○ —") ;;
+        "success") prod_icon="✓" ;;
+        "failure") prod_icon="✗" ;;
+        "running") prod_icon="◐" ;;
+        *) prod_icon="○" ;;
     esac
 
-    printf "  %-14s │ %-36s │ %-36s\n" "$app" "$dev_display" "$prod_display"
+    # Format dev line
+    local dev_line
+    if [ "$dev_url" != "—" ]; then
+        dev_line="DEV  $dev_icon  $dev_url"
+        [ -n "$dev_time" ] && dev_line="$dev_line\n     $dev_time"
+    else
+        dev_line="DEV  ○  —"
+    fi
+
+    # Format prod line
+    local prod_line
+    if [ "$prod_url" != "—" ]; then
+        prod_line="PROD $prod_icon  $prod_url"
+        [ -n "$prod_time" ] && prod_line="$prod_line\n     $prod_time"
+    else
+        prod_line="PROD ○  —"
+    fi
+
+    # Build card content with fixed width
+    printf "%s\n%s\n%b\n\n%b" \
+        "$app" \
+        "───────────────────────────────" \
+        "$dev_line" \
+        "$prod_line" | gum style \
+            --border rounded \
+            --border-foreground "$border_color" \
+            --padding "1 2" \
+            --width 42
+}
+
+fetch_and_show() {
+    local app="$1"
+    local dev_repo="$2"
+    local dev_branch="$3"
+    local prod_repo="$4"
+    local prod_branch="$5"
+    local dev_url="$6"
+    local prod_url="$7"
+
+    # Show fetching indicator
+    printf "  Fetching %-20s" "$app..."
+
+    # Fetch dev status
+    local dev_data="none||"
+    if [ -n "$dev_repo" ] && [ "$dev_repo" != "—" ]; then
+        dev_data=$(get_status "$dev_repo" "$dev_branch")
+    fi
+
+    # Fetch prod status
+    local prod_data="none||"
+    if [ -n "$prod_repo" ] && [ "$prod_repo" != "—" ]; then
+        prod_data=$(get_status "$prod_repo" "$prod_branch")
+    fi
+
+    # Clear the "Fetching..." line
+    printf "\r\033[K"
+
+    # Show the card
+    print_card "$app" "$dev_data" "$prod_data" "$dev_url" "$prod_url" "$dev_repo" "$prod_repo"
+    echo ""
 }
 
 show_dashboard() {
+    clear
+    echo ""
+
     # Header
-    echo ""
     gum style \
-        --border double \
-        --border-foreground 212 \
-        --padding "0 2" \
-        --margin "0 2" \
+        --foreground 212 \
+        --bold \
         --align center \
-        "🚀 HOTOSM Deploy Status"
+        --width 80 \
+        "HOTOSM Deploy Status"
 
+    gum style --foreground 240 --align center --width 80 "$(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
     echo ""
 
-    # Fetch all statuses
-    gum spin --spinner dot --title "Fetching deploy status..." -- sleep 0.3
+    # Fetch and display each app progressively
+    fetch_and_show "Portal" \
+        "hotosm/portal" "develop" \
+        "hotosm/portal" "main" \
+        "dev.portal.hotosm.org" "portal.hotosm.org"
 
-    local portal_dev=$(get_status "hotosm/portal" "develop")
-    local portal_prod=$(get_status "hotosm/portal" "main")
-    local login_dev=$(get_status "hotosm/login" "develop")
-    local login_prod=$(get_status "hotosm/login" "main")
-    local drone_dev=$(get_status "hotosm/drone-tm" "develop")
-    local drone_prod=$(get_status "hotosm/drone-tm" "main")
-    local fair_dev=$(get_status "hotosm/fAIr" "login_hanko")
-    local fair_prod=$(get_status "hotosm/fAIr" "main")
-    local umap_dev=$(get_status "hotosm/umap" "login_hanko")
-    local export_dev=$(get_status "hotosm/osm-export-tool" "login_hanko")
-    local tm_prod=$(get_status "hotosm/tasking-manager" "main")
-    local rawdata_prod=$(get_status "hotosm/raw-data-api" "main")
+    fetch_and_show "Login" \
+        "hotosm/login" "develop" \
+        "hotosm/login" "main" \
+        "dev.login.hotosm.org" "login.hotosm.org"
 
-    # Table header
-    echo ""
-    gum style --foreground 255 --bold "  APP            │ DEVELOPMENT                          │ PRODUCTION"
-    gum style --foreground 240 "  ───────────────┼──────────────────────────────────────┼──────────────────────────────────────"
+    fetch_and_show "Drone-TM" \
+        "hotosm/drone-tm" "develop" \
+        "hotosm/drone-tm" "main" \
+        "testlogin.dronetm.hotosm.org" "dronetm.hotosm.org"
 
-    # Rows
-    print_row "Portal" "$portal_dev" "$portal_prod" "dev.portal" "portal.hotosm.org" "hotosm/portal" "hotosm/portal"
-    print_row "Login" "$login_dev" "$login_prod" "dev.login" "login.hotosm.org" "hotosm/login" "hotosm/login"
-    print_row "Drone-TM" "$drone_dev" "$drone_prod" "testlogin.drone" "drone.hotosm.org" "hotosm/drone-tm" "hotosm/drone-tm"
-    print_row "fAIr" "$fair_dev" "$fair_prod" "testlogin.fair" "fair.hotosm.org" "hotosm/fAIr" "hotosm/fAIr"
-    print_row "uMap" "$umap_dev" "none||" "testlogin.umap" "—" "hotosm/umap" ""
-    print_row "Export Tool" "$export_dev" "none||" "testlogin.export" "—" "hotosm/osm-export-tool" ""
-    print_row "TM" "none||" "$tm_prod" "—" "tasks.hotosm.org" "" "hotosm/tasking-manager"
-    print_row "Raw Data API" "none||" "$rawdata_prod" "—" "api-prod.raw-data" "" "hotosm/raw-data-api"
+    fetch_and_show "fAIr" \
+        "hotosm/fAIr" "login_hanko" \
+        "hotosm/fAIr" "main" \
+        "testlogin.fair.hotosm.org" "fair.hotosm.org"
 
-    echo ""
-    gum style --foreground 240 "  ───────────────┴──────────────────────────────────────┴──────────────────────────────────────"
+    fetch_and_show "uMap" \
+        "hotosm/umap" "login_hanko" \
+        "" "" \
+        "testlogin.umap.hotosm.org" "—"
+
+    fetch_and_show "Export Tool" \
+        "hotosm/osm-export-tool" "login_hanko" \
+        "" "" \
+        "testlogin.export.hotosm.org" "—"
+
+    fetch_and_show "Tasking Manager" \
+        "" "" \
+        "hotosm/tasking-manager" "main" \
+        "—" "tasks.hotosm.org"
+
+    fetch_and_show "Raw Data API" \
+        "hotosm/raw-data-api" "login_hanko" \
+        "hotosm/raw-data-api" "main" \
+        "dev.raw-data.hotosm.org" "api-prod.raw-data.hotosm.org"
 
     # Legend
     echo ""
-    echo "  $(gum style --foreground 82 '✓ success')  $(gum style --foreground 196 '✗ failed')  $(gum style --foreground 220 '◐ running')  $(gum style --foreground 240 '○ none')"
+    gum style --foreground 240 "  $(gum style --foreground 82 '✓') success   $(gum style --foreground 196 '✗') failed   $(gum style --foreground 220 '◐') running   $(gum style --foreground 240 '○') none"
     echo ""
 
     # Show failures if any
     if [ ${#FAILED_RUNS[@]} -gt 0 ]; then
         echo ""
         gum style \
-            --border normal \
+            --border double \
             --border-foreground 196 \
-            --padding "0 1" \
+            --padding "0 2" \
             --foreground 196 \
-            "⚠️  Failed Builds"
+            --bold \
+            "FAILED BUILDS"
+        echo ""
 
         for failed in "${FAILED_RUNS[@]}"; do
-            IFS='|' read -r name repo run_id <<< "$failed"
+            IFS='|' read -r name env repo run_id <<< "$failed"
+
+            gum style --foreground 196 --bold "$name ($env)"
+            gum style --foreground 240 "  repo: $repo  |  run: $run_id"
             echo ""
-            gum style --foreground 196 --bold "▶ $name"
-            gum style --foreground 240 "─────────────────────────────────────────"
 
-            # Get failed logs (last 20 lines)
-            gh run view "$run_id" -R "$repo" --log-failed 2>&1 | tail -20
+            # Get failed logs (last 25 lines)
+            gh run view "$run_id" -R "$repo" --log-failed 2>&1 | tail -25 | while read -r line; do
+                gum style --foreground 203 "  $line"
+            done
 
+            echo ""
+            gum style --foreground 240 "─────────────────────────────────────────────────────────────────────────────"
             echo ""
         done
     fi
+
+    echo ""
 }
 
 # ============================================================================

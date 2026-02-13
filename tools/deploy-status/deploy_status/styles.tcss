@@ -1,0 +1,84 @@
+/* Deploy Status Dashboard Styles */
+
+Screen {
+    background: $background;
+}
+
+#main-container {
+    width: 100%;
+    height: 100%;
+}
+
+#header {
+    dock: top;
+    height: 3;
+    background: $primary;
+    color: $text;
+    text-align: center;
+    padding: 1;
+}
+
+#header-title {
+    text-style: bold;
+    width: 100%;
+    content-align: center middle;
+}
+
+#content {
+    width: 100%;
+    height: 1fr;
+}
+
+#apps-panel {
+    width: 1fr;
+    height: 100%;
+    padding: 1;
+}
+
+#apps-scroll {
+    width: 100%;
+    height: 100%;
+}
+
+#detail-panel {
+    width: 60%;
+    height: 100%;
+    display: none;
+    border-left: solid $surface-lighten-2;
+}
+
+#detail-panel.visible {
+    display: block;
+}
+
+#footer {
+    dock: bottom;
+    height: 1;
+    background: $surface-lighten-1;
+    color: $text-muted;
+    padding: 0 1;
+}
+
+.footer-key {
+    text-style: bold;
+    color: $primary-lighten-2;
+}
+
+/* Grid layout for cards */
+#apps-grid {
+    layout: grid;
+    grid-size: 2;
+    grid-gutter: 1;
+    width: 100%;
+    height: auto;
+}
+
+/* When detail view is open */
+#apps-panel.with-detail {
+    width: 35%;
+}
+
+/* Loading state */
+.app-loading {
+    opacity: 0.7;
+}

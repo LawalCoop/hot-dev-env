@@ -134,16 +134,20 @@ install:
 	@cd ../osm-export-tool && pip install -r requirements.txt 2>/dev/null || echo "   ⚠ Some deps require GDAL (OK - runs in Docker)"
 	@echo ""
 	@echo "→ Export Tool frontend..."
-	@cd ../osm-export-tool/ui && yarn install
+	@cd ../osm-export-tool/ui && yarn install --ignore-engines
 	@echo ""
 	@if [ -d "../chatmap/chatmap-ui" ]; then \
 		echo "→ ChatMap frontend..."; \
-		cd ../chatmap/chatmap-ui && yarn install; \
+		cd ../chatmap/chatmap-ui && yarn install --ignore-engines; \
+	fi
+	@if [ -d "../chatmap/chatmap-api" ]; then \
+		echo "→ ChatMap backend..."; \
+		cd ../chatmap/chatmap-api && uv sync || echo "   ⚠ Some deps may fail (OK - runs in Docker)"; \
 	fi
 	@echo ""
 	@if [ -d "../tasking-manager/frontend" ]; then \
 		echo "→ Tasking Manager frontend..."; \
-		cd ../tasking-manager/frontend && yarn install; \
+		cd ../tasking-manager/frontend && yarn install --ignore-engines; \
 	fi
 	@if [ -d "../tasking-manager" ]; then \
 		echo "→ Tasking Manager backend..."; \
@@ -378,11 +382,9 @@ update:
 	@echo "✓ Updated. Run 'make install' if dependencies changed."
 
 deploy-status:
-	@echo "════════════════════════════════════════════════"
-	@echo "  Deploy Status (Latest CI/CD Runs)"
-	@echo "════════════════════════════════════════════════"
-	@echo ""
-	@./scripts/deploy-status.sh
+	@command -v uv >/dev/null 2>&1 || { echo "Error: 'uv' not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 1; }
+	@command -v gh >/dev/null 2>&1 || { echo "Error: 'gh' (GitHub CLI) not found. Install with: sudo apt install gh && gh auth login"; exit 1; }
+	@cd tools/deploy-status && uv run deploy-status
 
 # ==================
 # Database
