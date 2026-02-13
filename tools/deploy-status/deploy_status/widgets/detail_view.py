@@ -5,7 +5,7 @@ from typing import Optional
 
 from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Static, Button
+from textual.widgets import Static, Button, LoadingIndicator
 from textual.message import Message
 
 import humanize
@@ -140,6 +140,27 @@ class DetailView(Static):
         color: $primary-lighten-2;
         text-style: underline;
     }
+
+    DetailView .hidden {
+        display: none;
+    }
+
+    DetailView #detail-loading {
+        height: auto;
+        padding: 2;
+        align: center middle;
+    }
+
+    DetailView .loading-text {
+        text-align: center;
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+
+    DetailView LoadingIndicator {
+        height: 3;
+        width: 100%;
+    }
     """
 
     class CloseRequested(Message):
@@ -166,8 +187,16 @@ class DetailView(Static):
                 yield Static(self.app_data.name, classes="detail-title")
                 yield Button("Close [Esc]", id="close-btn", classes="close-btn", variant="default")
 
+            # Loading indicator
+            loading_class = "" if self.app_data.loading else "hidden"
+            content_class = "hidden" if self.app_data.loading else ""
+
+            with Vertical(id="detail-loading", classes=loading_class):
+                yield Static("Fetching status...", classes="loading-text")
+                yield LoadingIndicator()
+
             # Content
-            with ScrollableContainer():
+            with ScrollableContainer(id="detail-content", classes=content_class):
                 yield from self._render_environment_section(self.app_data.dev, "Development")
                 yield from self._render_environment_section(self.app_data.prod, "Production")
 

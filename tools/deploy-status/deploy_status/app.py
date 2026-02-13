@@ -202,6 +202,15 @@ class DeployStatusApp(App):
             except NoMatches:
                 pass
 
+        # Update detail view to show loading if open
+        if self.selected_app:
+            # Find the updated app object
+            for app in self.apps:
+                if app.name == self.selected_app.name:
+                    self.selected_app = app
+                    break
+            self._update_detail_view()
+
         # Cancel existing refresh if running
         if self._refresh_task and not self._refresh_task.done():
             self._refresh_task.cancel()

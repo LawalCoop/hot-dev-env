@@ -383,7 +383,7 @@ update:
 
 deploy-status:
 	@command -v uv >/dev/null 2>&1 || { echo "Error: 'uv' not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 1; }
-	@command -v gh >/dev/null 2>&1 || { echo "Error: 'gh' (GitHub CLI) not found. Install with: sudo apt install gh && gh auth login"; exit 1; }
+	@command -v gh >/dev/null 2>&1 || { echo "Error: 'gh' (GitHub CLI) not found."; echo "  Mac: brew install gh && gh auth login"; echo "  Linux: sudo apt install gh && gh auth login"; exit 1; }
 	@cd tools/deploy-status && uv run deploy-status
 
 # ==================
