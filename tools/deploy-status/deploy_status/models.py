@@ -27,6 +27,7 @@ class Workflow:
     error_lines: list[str] = field(default_factory=list)
     repo: str = ""
     branch: str = ""
+    actor: Optional[str] = None  # User who triggered the build
 
     def __post_init__(self):
         if not self.display_name:
@@ -66,6 +67,12 @@ class Environment:
     error_lines: list[str] = field(default_factory=list)
     workflows: list[Workflow] = field(default_factory=list)
     last_commit: Optional[Commit] = None
+    actor: Optional[str] = None  # User who triggered the build
+    # Health check fields
+    health_ok: Optional[bool] = None
+    health_code: Optional[int] = None
+    health_latency_ms: Optional[int] = None
+    health_error: Optional[str] = None
 
     @property
     def has_workflows(self) -> bool:
@@ -98,6 +105,17 @@ class BranchCompareConfig:
 
 
 @dataclass
+class Release:
+    """A GitHub release."""
+    tag: str
+    name: str
+    author: str
+    published: Optional[datetime] = None
+    build_status: Status = Status.LOADING
+    build_run_id: Optional[int] = None
+
+
+@dataclass
 class App:
     """An application in the dashboard."""
     name: str
@@ -107,6 +125,8 @@ class App:
     loading: bool = True
     compare_configs: list[BranchCompareConfig] = field(default_factory=list)
     comparisons: list[BranchComparison] = field(default_factory=list)
+    latest_release: Optional[Release] = None
+    track_releases: bool = False  # Whether to fetch release info
 
     @property
     def overall_status(self) -> Status:
@@ -192,6 +212,7 @@ def get_apps() -> list[App]:
             compare_configs=[
                 BranchCompareConfig(base="main", head="develop", label="develop → main"),
             ],
+            track_releases=True,
         ),
         App(
             name="Drone-TM",

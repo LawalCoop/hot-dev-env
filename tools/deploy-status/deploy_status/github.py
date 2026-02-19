@@ -7,7 +7,7 @@ from typing import Optional
 
 import httpx
 
-from .models import App, BranchComparison, BranchCompareConfig, Commit, Environment, Status, Workflow
+from .models import App, BranchComparison, BranchCompareConfig, Commit, Environment, Release, Status, Workflow
 
 
 async def fetch_workflow_status(
@@ -21,17 +21,15 @@ async def fetch_workflow_status(
         return {"status": Status.NONE}
 
     try:
-        # Use gh CLI to get the status (handles auth automatically)
-        cmd = [
-            "gh", "run", "list",
-            "-R", repo,
-            "--branch", branch,
-            "-L", "1",
-            "--json", "status,conclusion,createdAt,databaseId,updatedAt,name,workflowName",
-        ]
-
+        # Build API URL with query params
+        api_path = f"repos/{repo}/actions/runs?branch={branch}&per_page=1"
         if workflow_name:
-            cmd.extend(["--workflow", workflow_name])
+            # Need to get workflow ID first or filter by name after
+            pass
+
+        jq_filter = '.workflow_runs[0] | {id, status, conclusion, created_at, updated_at, actor: .actor.login, workflow_name: .name}'
+
+        cmd = ["gh", "api", api_path, "--jq", jq_filter]
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -44,17 +42,23 @@ async def fetch_workflow_status(
             return {"status": Status.NONE, "error": stderr.decode()}
 
         import json
-        data = json.loads(stdout.decode())
-
-        if not data:
+        output = stdout.decode().strip()
+        if not output or output == "null":
             return {"status": Status.NONE}
 
-        run = data[0]
+        run = json.loads(output)
+
         status_str = run.get("status", "")
         conclusion = run.get("conclusion", "")
-        created_at = run.get("createdAt", "")
-        updated_at = run.get("updatedAt", "")
-        run_id = run.get("databaseId")
+        created_at = run.get("created_at", "")
+        updated_at = run.get("updated_at", "")
+        run_id = run.get("id")
+        actor = run.get("actor", "")
+
+        # If workflow_name specified, verify it matches
+        if workflow_name and run.get("workflow_name") != workflow_name:
+            # Fallback to gh run list for specific workflow
+            return await _fetch_workflow_status_by_name(repo, branch, workflow_name)
 
         # Parse time
         time = None
@@ -81,13 +85,93 @@ async def fetch_workflow_status(
             "run_id": run_id,
             "time": time,
             "duration_seconds": duration,
+            "actor": actor,
         }
 
     except Exception as e:
         return {"status": Status.NONE, "error": str(e)}
 
 
-async def fetch_error_logs(repo: str, run_id: int, max_lines: int = 30) -> list[str]:
+async def _fetch_workflow_status_by_name(repo: str, branch: str, workflow_name: str) -> dict:
+    """Fetch workflow status for a specific workflow name."""
+    try:
+        cmd = [
+            "gh", "run", "list",
+            "-R", repo,
+            "--branch", branch,
+            "--workflow", workflow_name,
+            "-L", "1",
+            "--json", "status,conclusion,createdAt,databaseId,updatedAt",
+        ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
+        if proc.returncode != 0:
+            return {"status": Status.NONE}
+
+        import json
+        data = json.loads(stdout.decode())
+
+        if not data:
+            return {"status": Status.NONE}
+
+        run = data[0]
+        run_id = run.get("databaseId")
+
+        # Get actor from API
+        actor = ""
+        if run_id:
+            actor_cmd = ["gh", "api", f"repos/{repo}/actions/runs/{run_id}", "--jq", ".actor.login"]
+            actor_proc = await asyncio.create_subprocess_exec(
+                *actor_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            actor_stdout, _ = await actor_proc.communicate()
+            if actor_proc.returncode == 0:
+                actor = actor_stdout.decode().strip()
+
+        status_str = run.get("status", "")
+        conclusion = run.get("conclusion", "")
+        created_at = run.get("createdAt", "")
+        updated_at = run.get("updatedAt", "")
+
+        time = None
+        duration = None
+        if created_at:
+            try:
+                time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                if updated_at:
+                    end_time = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                    duration = int((end_time - time).total_seconds())
+            except ValueError:
+                pass
+
+        if status_str == "completed":
+            status = Status.SUCCESS if conclusion == "success" else Status.FAILURE
+        elif status_str in ("in_progress", "queued", "waiting"):
+            status = Status.RUNNING
+        else:
+            status = Status.NONE
+
+        return {
+            "status": status,
+            "run_id": run_id,
+            "time": time,
+            "duration_seconds": duration,
+            "actor": actor,
+        }
+
+    except Exception:
+        return {"status": Status.NONE}
+
+
+async def fetch_error_logs(repo: str, run_id: int, max_lines: int = 500) -> list[str]:
     """Fetch error logs for a failed run."""
     try:
         cmd = [
@@ -230,6 +314,7 @@ async def fetch_environment_status(env: Environment) -> Environment:
             workflow.run_id = result.get("run_id")
             workflow.time = result.get("time")
             workflow.duration_seconds = result.get("duration_seconds")
+            workflow.actor = result.get("actor")
 
             if workflow.status == Status.FAILURE and workflow.run_id:
                 workflow.error_lines = await fetch_error_logs(
@@ -241,6 +326,7 @@ async def fetch_environment_status(env: Environment) -> Environment:
         env.run_id = result.get("run_id")
         env.time = result.get("time")
         env.duration_seconds = result.get("duration_seconds")
+        env.actor = result.get("actor")
 
         if env.status == Status.FAILURE and env.run_id:
             env.error_lines = await fetch_error_logs(env.repo, env.run_id)
@@ -249,6 +335,33 @@ async def fetch_environment_status(env: Environment) -> Environment:
     env.last_commit = await fetch_latest_commit(env.repo, env.branch)
 
     return env
+
+
+async def fetch_health_check(env: Environment) -> None:
+    """Check if the environment URL is responding."""
+    if not env.url:
+        return
+
+    url = f"https://{env.url}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            import time
+            start = time.monotonic()
+            response = await client.get(url)
+            latency = int((time.monotonic() - start) * 1000)
+
+            env.health_code = response.status_code
+            env.health_latency_ms = latency
+            env.health_ok = 200 <= response.status_code < 400
+    except httpx.TimeoutException:
+        env.health_ok = False
+        env.health_error = "Timeout"
+    except httpx.ConnectError:
+        env.health_ok = False
+        env.health_error = "Connection failed"
+    except Exception as e:
+        env.health_ok = False
+        env.health_error = str(e)[:50]
 
 
 async def fetch_app_status(app: App) -> App:
@@ -268,8 +381,83 @@ async def fetch_app_status(app: App) -> App:
         ])
         app.comparisons = list(comparisons)
 
+    # Fetch latest release if tracking releases
+    if app.track_releases and repo:
+        app.latest_release = await fetch_latest_release(repo)
+
     app.loading = False
     return app
+
+
+async def fetch_latest_release(repo: str) -> Optional[Release]:
+    """Fetch the latest release and its build status."""
+    try:
+        # Get latest release
+        cmd = [
+            "gh", "api", f"repos/{repo}/releases/latest",
+            "--jq", '{tag: .tag_name, name: .name, published: .published_at, author: .author.login}'
+        ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
+        if proc.returncode != 0:
+            return None
+
+        import json
+        data = json.loads(stdout.decode())
+
+        published = None
+        if data.get("published"):
+            try:
+                published = datetime.fromisoformat(data["published"].replace("Z", "+00:00"))
+            except ValueError:
+                pass
+
+        release = Release(
+            tag=data.get("tag", ""),
+            name=data.get("name", ""),
+            author=data.get("author", ""),
+            published=published,
+        )
+
+        # Get build status for this release
+        # Look for workflow runs triggered by the release
+        run_cmd = [
+            "gh", "api", f"repos/{repo}/actions/runs?event=release&per_page=5",
+            "--jq", f'[.workflow_runs[] | select(.head_branch == "{release.tag}" or .display_title == "{release.tag}")] | .[0] | {{id, status, conclusion}}'
+        ]
+
+        run_proc = await asyncio.create_subprocess_exec(
+            *run_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        run_stdout, _ = await run_proc.communicate()
+
+        if run_proc.returncode == 0:
+            run_output = run_stdout.decode().strip()
+            if run_output and run_output != "null":
+                run_data = json.loads(run_output)
+                status_str = run_data.get("status", "")
+                conclusion = run_data.get("conclusion", "")
+                release.build_run_id = run_data.get("id")
+
+                if status_str == "completed":
+                    release.build_status = Status.SUCCESS if conclusion == "success" else Status.FAILURE
+                elif status_str in ("in_progress", "queued", "waiting"):
+                    release.build_status = Status.RUNNING
+                else:
+                    release.build_status = Status.NONE
+
+        return release
+
+    except Exception:
+        return None
 
 
 def open_in_browser(url: str) -> None:
