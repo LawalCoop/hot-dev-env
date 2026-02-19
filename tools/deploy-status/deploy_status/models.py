@@ -34,6 +34,25 @@ class Workflow:
 
 
 @dataclass
+class Commit:
+    """A git commit."""
+    sha: str
+    message: str
+    author: str
+    date: Optional[datetime] = None
+
+
+@dataclass
+class BranchComparison:
+    """Comparison between two branches."""
+    base: str
+    head: str
+    ahead_by: int = 0
+    behind_by: int = 0
+    commits: list[Commit] = field(default_factory=list)
+
+
+@dataclass
 class Environment:
     """A deployment environment (dev/prod)."""
     name: str
@@ -46,6 +65,7 @@ class Environment:
     duration_seconds: Optional[int] = None
     error_lines: list[str] = field(default_factory=list)
     workflows: list[Workflow] = field(default_factory=list)
+    last_commit: Optional[Commit] = None
 
     @property
     def has_workflows(self) -> bool:
@@ -70,6 +90,14 @@ class Environment:
 
 
 @dataclass
+class BranchCompareConfig:
+    """Configuration for branch comparison."""
+    base: str
+    head: str
+    label: str  # Display label like "develop → main"
+
+
+@dataclass
 class App:
     """An application in the dashboard."""
     name: str
@@ -77,6 +105,8 @@ class App:
     dev: Environment
     prod: Environment
     loading: bool = True
+    compare_configs: list[BranchCompareConfig] = field(default_factory=list)
+    comparisons: list[BranchComparison] = field(default_factory=list)
 
     @property
     def overall_status(self) -> Status:
@@ -136,6 +166,9 @@ def get_apps() -> list[App]:
                 repo="hotosm/portal",
                 branch="main",
             ),
+            compare_configs=[
+                BranchCompareConfig(base="main", head="develop", label="develop → main"),
+            ],
         ),
         App(
             name="Login",
@@ -156,6 +189,9 @@ def get_apps() -> list[App]:
                     Workflow(name="Release Helm Chart", display_name="Helm", icon="⎈", repo="hotosm/login", branch="main"),
                 ],
             ),
+            compare_configs=[
+                BranchCompareConfig(base="main", head="develop", label="develop → main"),
+            ],
         ),
         App(
             name="Drone-TM",
@@ -164,7 +200,7 @@ def get_apps() -> list[App]:
                 name="DEV",
                 url="testlogin.dronetm.hotosm.org",
                 repo="hotosm/drone-tm",
-                branch="develop",
+                branch="login-hanko",
             ),
             prod=Environment(
                 name="PROD",
@@ -172,6 +208,9 @@ def get_apps() -> list[App]:
                 repo="hotosm/drone-tm",
                 branch="main",
             ),
+            compare_configs=[
+                BranchCompareConfig(base="dev", head="login-hanko", label="login-hanko → dev"),
+            ],
         ),
         App(
             name="fAIr",
@@ -188,6 +227,9 @@ def get_apps() -> list[App]:
                 repo="hotosm/fAIr",
                 branch="main",
             ),
+            compare_configs=[
+                BranchCompareConfig(base="develop", head="login_hanko", label="login_hanko → develop"),
+            ],
         ),
         App(
             name="uMap",
@@ -203,6 +245,9 @@ def get_apps() -> list[App]:
                 url="",
                 status=Status.NONE,
             ),
+            compare_configs=[
+                BranchCompareConfig(base="develop", head="login_hanko", label="login_hanko → develop"),
+            ],
         ),
         App(
             name="Export Tool",
@@ -218,6 +263,9 @@ def get_apps() -> list[App]:
                 url="",
                 status=Status.NONE,
             ),
+            compare_configs=[
+                BranchCompareConfig(base="master", head="login_hanko", label="login_hanko → master"),
+            ],
         ),
         App(
             name="Tasking Manager",
@@ -233,6 +281,7 @@ def get_apps() -> list[App]:
                 repo="hotosm/tasking-manager",
                 branch="main",
             ),
+            # No comparison for TM since we don't have a feature branch
         ),
         App(
             name="Raw Data API",
@@ -249,5 +298,8 @@ def get_apps() -> list[App]:
                 repo="hotosm/raw-data-api",
                 branch="main",
             ),
+            compare_configs=[
+                BranchCompareConfig(base="main", head="login_hanko", label="login_hanko → main"),
+            ],
         ),
     ]

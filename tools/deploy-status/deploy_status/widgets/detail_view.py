@@ -5,12 +5,12 @@ from typing import Optional
 
 from textual.app import ComposeResult
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Static, Button, LoadingIndicator
+from textual.widgets import Static, Button, LoadingIndicator, TabbedContent, TabPane
 from textual.message import Message
 
 import humanize
 
-from ..models import App, Environment, Status, Workflow, get_status_icon
+from ..models import App, BranchComparison, Commit, Environment, Status, Workflow, get_status_icon
 
 
 class DetailView(Static):
@@ -22,6 +22,20 @@ class DetailView(Static):
         height: 100%;
         padding: 1 2;
         background: $surface;
+    }
+
+    DetailView .detail-content {
+        height: 100%;
+    }
+
+    DetailView #detail-tabs {
+        height: auto;
+        max-height: 100%;
+    }
+
+    DetailView ScrollableContainer {
+        height: auto;
+        max-height: 100%;
     }
 
     DetailView .detail-header {
@@ -100,6 +114,23 @@ class DetailView(Static):
         max-height: 15;
     }
 
+    DetailView .commit-section {
+        margin-top: 1;
+        padding: 0 1;
+        background: $surface-lighten-1;
+        border: solid $surface-lighten-2;
+    }
+
+    DetailView .commit-title {
+        text-style: bold;
+        color: $primary;
+    }
+
+    DetailView .commit-sha {
+        color: $warning;
+        text-style: bold;
+    }
+
     DetailView .error-title {
         text-style: bold;
         color: $error;
@@ -145,6 +176,81 @@ class DetailView(Static):
         display: none;
     }
 
+    DetailView .no-data {
+        color: $text-muted;
+        text-style: italic;
+        padding: 2;
+    }
+
+    DetailView .comparison-label {
+        text-style: bold;
+        color: $primary;
+        margin-top: 1;
+    }
+
+    DetailView .stat {
+        height: 1;
+    }
+
+    DetailView .stat-good {
+        color: $success;
+    }
+
+    DetailView .stat-warn {
+        color: $warning;
+    }
+
+    DetailView .stat-neutral {
+        color: $text-muted;
+    }
+
+    DetailView .commits-title {
+        color: $text-muted;
+        margin-top: 1;
+    }
+
+    DetailView .env-commit-row {
+        height: 1;
+    }
+
+    DetailView .env-commit-label {
+        width: 6;
+        color: $text-muted;
+    }
+
+    DetailView .commit-msg-short {
+        width: 1fr;
+    }
+
+    DetailView .commit-time {
+        width: 15;
+        color: $text-muted;
+        text-align: right;
+    }
+
+    DetailView .section-title {
+        text-style: bold;
+        margin-top: 1;
+    }
+
+    DetailView .commit-row {
+        height: 1;
+    }
+
+    DetailView .commit-sha-small {
+        width: 8;
+        color: $warning;
+    }
+
+    DetailView .commit-msg {
+        width: 1fr;
+    }
+
+    DetailView .commit-author {
+        width: 12;
+        color: $text-muted;
+    }
+
     DetailView #detail-loading {
         height: auto;
         padding: 2;
@@ -161,6 +267,7 @@ class DetailView(Static):
         height: 3;
         width: 100%;
     }
+
     """
 
     class CloseRequested(Message):
@@ -180,7 +287,7 @@ class DetailView(Static):
 
     def compose(self) -> ComposeResult:
         """Compose the detail view."""
-        with Vertical():
+        with Vertical(classes="detail-content"):
             # Header
             with Horizontal(classes="detail-header"):
                 yield Static(self.app_data.icon, classes="detail-icon")
@@ -195,12 +302,29 @@ class DetailView(Static):
                 yield Static("Fetching status...", classes="loading-text")
                 yield LoadingIndicator()
 
-            # Content
-            with ScrollableContainer(id="detail-content", classes=content_class):
-                yield from self._render_environment_section(self.app_data.dev, "Development")
-                yield from self._render_environment_section(self.app_data.prod, "Production")
+            # Content with tabs
+            with TabbedContent(id="detail-tabs", classes=content_class):
+                with TabPane("Build Status", id="tab-builds"):
+                    with ScrollableContainer():
+                        yield from self._render_environment_section(self.app_data.dev, "Development")
+                        yield from self._render_environment_section(self.app_data.prod, "Production")
+                        yield Static("Press 'o' GitHub, 'u' URL, 'Esc' close", classes="action-hint")
 
-                yield Static("Press 'o' to open in GitHub, 'Esc' to close", classes="action-hint")
+                with TabPane("Git", id="tab-branches"):
+                    with ScrollableContainer():
+                        # Last commits per environment
+                        yield Static("Último commit por ambiente:", classes="section-title")
+                        if self.app_data.dev.last_commit:
+                            yield from self._render_env_commit(self.app_data.dev)
+                        if self.app_data.prod.last_commit:
+                            yield from self._render_env_commit(self.app_data.prod)
+
+                        # Branch comparisons
+                        if self.app_data.comparisons:
+                            yield Static("Comparación de branches:", classes="section-title")
+                            yield from self._render_comparisons()
+                        elif not self.app_data.dev.last_commit and not self.app_data.prod.last_commit:
+                            yield Static("No git info available", classes="no-data")
 
     def _render_environment_section(self, env: Environment, title: str) -> ComposeResult:
         """Render an environment section."""
@@ -280,6 +404,65 @@ class DetailView(Static):
 
         if workflow.status == Status.FAILURE and workflow.error_lines:
             yield from self._render_error_section(workflow.error_lines)
+
+    def _render_commit_info(self, commit: Commit) -> ComposeResult:
+        """Render commit info section."""
+        with Vertical(classes="commit-section"):
+            yield Static("Last Commit:", classes="commit-title")
+            with Horizontal(classes="info-row"):
+                yield Static("SHA:", classes="info-label")
+                yield Static(commit.sha, classes="info-value commit-sha")
+            with Horizontal(classes="info-row"):
+                yield Static("Message:", classes="info-label")
+                yield Static(commit.message, classes="info-value")
+            with Horizontal(classes="info-row"):
+                yield Static("Author:", classes="info-label")
+                yield Static(commit.author, classes="info-value")
+            if commit.date:
+                time_ago = humanize.naturaltime(commit.date, when=datetime.now(timezone.utc))
+                with Horizontal(classes="info-row"):
+                    yield Static("Date:", classes="info-label")
+                    yield Static(time_ago, classes="info-value")
+
+    def _render_env_commit(self, env: Environment) -> ComposeResult:
+        """Render compact commit info for an environment."""
+        commit = env.last_commit
+        if not commit:
+            return
+
+        time_ago = ""
+        if commit.date:
+            time_ago = humanize.naturaltime(commit.date, when=datetime.now(timezone.utc))
+
+        with Horizontal(classes="env-commit-row"):
+            yield Static(f"{env.name}:", classes="env-commit-label")
+            yield Static(commit.sha, classes="commit-sha-small")
+            yield Static(commit.message[:30], classes="commit-msg-short")
+            yield Static(time_ago, classes="commit-time")
+
+    def _render_comparisons(self) -> ComposeResult:
+        """Render branch comparisons."""
+        for i, (config, comparison) in enumerate(zip(self.app_data.compare_configs, self.app_data.comparisons)):
+            yield Static(f"{config.head} → {config.base}:", classes="comparison-label")
+
+            # Clear explanation of what needs to happen
+            if comparison.ahead_by > 0:
+                ahead_msg = f"  📤 {comparison.ahead_by} commits para mergear"
+                yield Static(ahead_msg, classes="stat stat-warn")
+            else:
+                yield Static(f"  ✓ Al día", classes="stat stat-good")
+
+            if comparison.behind_by > 0:
+                behind_msg = f"  📥 {comparison.behind_by} commits atrás"
+                yield Static(behind_msg, classes="stat stat-warn")
+
+            # Recent commits to merge (if any)
+            if comparison.commits:
+                yield Static(f"  Pendientes:", classes="commits-title")
+                for commit in comparison.commits[-5:]:
+                    with Horizontal(classes="commit-row"):
+                        yield Static(f"    {commit.sha}", classes="commit-sha-small")
+                        yield Static(commit.message[:35], classes="commit-msg")
 
     def _render_error_section(self, error_lines: list[str]) -> ComposeResult:
         """Render error log section."""
