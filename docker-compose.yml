@@ -118,6 +118,7 @@ services:
       - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
       - UMAP_BASE_URL=https://umap.hotosm.test
       - EXPORT_TOOL_API_BASE_URL=http://export-tool-app:8000/api
+      - CHATMAP_API_BASE_URL=http://chatmap-backend:8000/v1
     extra_hosts:
       - "dronetm.hotosm.test:host-gateway"
       - "fair.hotosm.test:host-gateway"
@@ -858,7 +859,7 @@ services:
     volumes:
       - ../chatmap/chatmap-ui/src:/app/src
       - ../chatmap/chatmap-ui/public:/app/public
-      - ./config/chatmap-config.json:/app/public/config.json:ro
+      - ./config/chatmap-config.json:/usr/share/nginx/html/config.json:ro
       - ../chatmap/chatmap-ui/index.html:/app/index.html
       - ../chatmap/chatmap-ui/vite.config.js:/app/vite.config.js
       # Note: @hotosm/hanko-auth is now installed from npm
@@ -871,7 +872,7 @@ services:
       - "traefik.http.routers.chatmap-frontend.rule=Host(`chatmap.hotosm.test`)"
       - "traefik.http.routers.chatmap-frontend.entrypoints=websecure"
       - "traefik.http.routers.chatmap-frontend.tls=true"
-      - "traefik.http.services.chatmap-frontend.loadbalancer.server.port=5173"
+      - "traefik.http.services.chatmap-frontend.loadbalancer.server.port=80"
 
   # ChatMap Backend (FastAPI)
   chatmap-backend:
