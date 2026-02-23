@@ -45,10 +45,12 @@ Screen {
     height: 100%;
     display: none;
     border-left: solid $surface-lighten-2;
+    overflow: hidden;
 }
 
 #detail-panel.visible {
     display: block;
+    overflow-y: auto;
 }
 
 #footer {

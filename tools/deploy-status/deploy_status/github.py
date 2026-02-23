@@ -390,12 +390,12 @@ async def fetch_app_status(app: App) -> App:
 
 
 async def fetch_latest_release(repo: str) -> Optional[Release]:
-    """Fetch the latest release and its build status."""
+    """Fetch the latest tag and its build status."""
     try:
-        # Get latest release
+        # Get latest tag (sorted by version, descending)
         cmd = [
-            "gh", "api", f"repos/{repo}/releases/latest",
-            "--jq", '{tag: .tag_name, name: .name, published: .published_at, author: .author.login}'
+            "gh", "api", f"repos/{repo}/tags?per_page=1",
+            "--jq", '.[0] | {tag: .name, sha: .commit.sha}'
         ]
 
         proc = await asyncio.create_subprocess_exec(
@@ -411,25 +411,47 @@ async def fetch_latest_release(repo: str) -> Optional[Release]:
         import json
         data = json.loads(stdout.decode())
 
+        if not data or not data.get("tag"):
+            return None
+
+        tag_name = data.get("tag", "")
+
+        # Get commit info for the tag
+        commit_cmd = [
+            "gh", "api", f"repos/{repo}/commits/{data.get('sha')}",
+            "--jq", '{date: .commit.author.date, author: .commit.author.name}'
+        ]
+
+        commit_proc = await asyncio.create_subprocess_exec(
+            *commit_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        commit_stdout, _ = await commit_proc.communicate()
+
         published = None
-        if data.get("published"):
-            try:
-                published = datetime.fromisoformat(data["published"].replace("Z", "+00:00"))
-            except ValueError:
-                pass
+        author = ""
+        if commit_proc.returncode == 0:
+            commit_data = json.loads(commit_stdout.decode())
+            author = commit_data.get("author", "")
+            if commit_data.get("date"):
+                try:
+                    published = datetime.fromisoformat(commit_data["date"].replace("Z", "+00:00"))
+                except ValueError:
+                    pass
 
         release = Release(
-            tag=data.get("tag", ""),
-            name=data.get("name", ""),
-            author=data.get("author", ""),
+            tag=tag_name,
+            name=tag_name,
+            author=author,
             published=published,
         )
 
-        # Get build status for this release
-        # Look for workflow runs triggered by the release
+        # Get build status for this tag
+        # Look for workflow runs on the tag
         run_cmd = [
-            "gh", "api", f"repos/{repo}/actions/runs?event=release&per_page=5",
-            "--jq", f'[.workflow_runs[] | select(.head_branch == "{release.tag}" or .display_title == "{release.tag}")] | .[0] | {{id, status, conclusion}}'
+            "gh", "api", f"repos/{repo}/actions/runs?branch={release.tag}&per_page=1",
+            "--jq", '.workflow_runs[0] | {id, status, conclusion}'
         ]
 
         run_proc = await asyncio.create_subprocess_exec(
