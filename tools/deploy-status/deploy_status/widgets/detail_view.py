@@ -61,7 +61,16 @@ class DetailView(Static):
     }
 
     DetailView TabPane > VerticalScroll {
-        height: 100%;
+        height: 1fr;
+    }
+
+    DetailView #builds-scroll {
+        height: 1fr;
+        scrollbar-gutter: stable;
+    }
+
+    DetailView #builds-scroll > * {
+        width: 100%;
     }
 
     DetailView .detail-header {
@@ -145,16 +154,16 @@ class DetailView(Static):
     }
 
     DetailView .error-section {
-        margin-top: 0;
+        margin-top: 1;
         padding: 1;
         background: $error 10%;
         border: solid $error 50%;
         height: auto;
     }
 
-    DetailView .error-header {
-        height: 3;
+    DetailView .github-error-btn {
         margin-top: 1;
+        width: auto;
     }
 
     DetailView .copy-btn {
@@ -165,13 +174,6 @@ class DetailView(Static):
         margin-left: 1;
         border: none;
         background: transparent;
-    }
-
-    DetailView .copy-error-btn {
-        width: 12;
-        min-width: 12;
-        height: 3;
-        margin-left: 2;
     }
 
     DetailView .commit-section {
@@ -198,11 +200,6 @@ class DetailView(Static):
     DetailView .error-title {
         text-style: bold;
         color: $error;
-        margin-bottom: 1;
-    }
-
-    DetailView .error-log {
-        color: $text;
     }
 
     DetailView .status-success {
@@ -386,7 +383,7 @@ class DetailView(Static):
             # Content with tabs
             with TabbedContent(id="detail-tabs", classes=content_class):
                 with TabPane("Build Status", id="tab-builds"):
-                    with VerticalScroll():
+                    with VerticalScroll(id="builds-scroll"):
                         # Release info if tracking
                         if self.app_data.latest_release:
                             yield from self._render_release_section(self.app_data.latest_release)
@@ -507,7 +504,7 @@ class DetailView(Static):
 
         # Error logs
         if env.status == Status.FAILURE and env.error_lines:
-            yield from self._render_error_section(env.error_lines, env.name)
+            yield from self._render_error_section(env.error_lines, env.name, env.repo, env.run_id)
 
     def _render_workflow_info(self, workflow: Workflow, env_name: str = "") -> ComposeResult:
         """Render info for a workflow."""
@@ -526,7 +523,7 @@ class DetailView(Static):
                 yield Static(f"Last run: {time_ago}{actor_info}", classes="info-value")
 
         if workflow.status == Status.FAILURE and workflow.error_lines:
-            yield from self._render_error_section(workflow.error_lines, f"{env_name}-{workflow.name}")
+            yield from self._render_error_section(workflow.error_lines, f"{env_name}-{workflow.name}", workflow.repo, workflow.run_id)
 
     def _render_commit_info(self, commit: Commit) -> ComposeResult:
         """Render commit info section."""
@@ -587,14 +584,28 @@ class DetailView(Static):
                         yield Static(f"    {commit.sha}", classes="commit-sha-small")
                         yield Static(commit.message[:35], classes="commit-msg")
 
-    def _render_error_section(self, error_lines: list[str], env_name: str = "") -> ComposeResult:
-        """Render error log section."""
-        with Horizontal(classes="error-header"):
-            yield Static(f"Error Log ({len(error_lines)} lines):", classes="error-title")
-            yield Button("📋 Copy All", id=f"copy-error-{env_name}", classes="copy-error-btn", variant="default")
+    def _render_error_section(self, error_lines: list[str], env_name: str = "", repo: str = "", run_id: int = None) -> ComposeResult:
+        """Render error log section with link to GitHub."""
+        # Find the actual error message
+        error_msg = "Build failed"
+        for line in error_lines:
+            if '##[error]' in line:
+                # Extract message after ##[error]
+                error_msg = line.split('##[error]')[-1].strip()[:80]
+                break
+            elif 'error' in line.lower() and 'failed' in line.lower():
+                error_msg = line.strip()[:80]
+                break
+
         with Vertical(classes="error-section"):
-            for line in error_lines:
-                yield Static(line, classes="error-log")
+            yield Static(f"❌ {error_msg}", classes="error-title")
+            if repo and run_id:
+                yield Button(
+                    "🔗 Ver error en GitHub",
+                    id=f"open-error-{env_name}",
+                    classes="github-error-btn",
+                    variant="error"
+                )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press."""
@@ -640,6 +651,30 @@ class DetailView(Static):
                     self.notify("Error log copied!")
                 else:
                     self.notify("Failed to copy", severity="error")
+        elif btn_id.startswith("open-error-"):
+            # Open GitHub Actions run for the failed build
+            error_id = btn_id.replace("open-error-", "")
+            repo = None
+            run_id = None
+
+            if error_id.startswith("DEV-") or error_id.startswith("PROD-"):
+                env_name = error_id.split("-")[0]
+                workflow_name = error_id[len(env_name)+1:]
+                env = self.app_data.dev if env_name == "DEV" else self.app_data.prod
+                for wf in env.workflows:
+                    if wf.name == workflow_name:
+                        repo = wf.repo
+                        run_id = wf.run_id
+                        break
+            else:
+                env = self.app_data.dev if error_id == "DEV" else self.app_data.prod
+                repo = env.repo
+                run_id = env.run_id
+
+            if repo and run_id:
+                import webbrowser
+                url = f"https://github.com/{repo}/actions/runs/{run_id}"
+                webbrowser.open(url)
 
     def _update_health_display(self) -> None:
         """Update the health status widgets."""
