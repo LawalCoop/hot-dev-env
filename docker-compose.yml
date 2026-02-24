@@ -825,7 +825,7 @@ services:
       - DEBUG=${DEBUG:-true}
       - ALLOWED_HOSTS=umap.hotosm.test,localhost,127.0.0.1,umap-app
       - CSRF_TRUSTED_ORIGINS=https://umap.hotosm.test
-      - AUTH_PROVIDER=hanko
+      - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
       # Backend uses internal HTTP URL (no SSL issues)
       - HANKO_API_URL=http://hanko:8000
       # Frontend uses public HTTPS URL (for web component)
