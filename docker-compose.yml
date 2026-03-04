@@ -801,8 +801,6 @@ services:
       - ../umap/app:/app
       - /app/.venv  # Preserve .venv from build
       - ./certs/localhost.crt:/etc/ssl/certs/localhost.crt:ro
-      - ../login/auth-libs/web-component/dist/hanko-auth.esm.js:/app/custom/static/umap/js/hanko-auth.esm.js:ro
-      - ../portal/frontend/web-components/tool-menu/dist/tool-menu.esm.js:/app/custom/static/umap/js/tool-menu.esm.js:ro
     entrypoint: []
     command: >
       bash -c "
