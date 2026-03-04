@@ -198,6 +198,34 @@ async def fetch_error_logs(repo: str, run_id: int, max_lines: int = 500) -> list
         return []
 
 
+async def fetch_failed_job_id(repo: str, run_id: int) -> Optional[int]:
+    """Fetch the job ID of the first failed job in a run."""
+    try:
+        cmd = [
+            "gh", "api",
+            f"repos/{repo}/actions/runs/{run_id}/jobs",
+            "--jq", '[.jobs[] | select(.conclusion == "failure")][0].id'
+        ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
+        if proc.returncode != 0:
+            return None
+
+        output = stdout.decode().strip()
+        if output and output != "null":
+            return int(output)
+        return None
+
+    except Exception:
+        return None
+
+
 async def fetch_latest_commit(repo: str, branch: str) -> Optional[Commit]:
     """Fetch the latest commit for a branch."""
     if not repo or not branch:
@@ -320,6 +348,9 @@ async def fetch_environment_status(env: Environment) -> Environment:
                 workflow.error_lines = await fetch_error_logs(
                     workflow.repo, workflow.run_id
                 )
+                workflow.job_id = await fetch_failed_job_id(
+                    workflow.repo, workflow.run_id
+                )
     else:
         result = await fetch_workflow_status(None, env.repo, env.branch)
         env.status = result.get("status", Status.NONE)
@@ -330,6 +361,7 @@ async def fetch_environment_status(env: Environment) -> Environment:
 
         if env.status == Status.FAILURE and env.run_id:
             env.error_lines = await fetch_error_logs(env.repo, env.run_id)
+            env.job_id = await fetch_failed_job_id(env.repo, env.run_id)
 
     # Fetch latest commit
     env.last_commit = await fetch_latest_commit(env.repo, env.branch)

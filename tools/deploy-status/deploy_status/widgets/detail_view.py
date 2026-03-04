@@ -57,19 +57,20 @@ class DetailView(Static):
     }
 
     DetailView TabPane {
-        height: 100%;
+        height: 1fr;
     }
 
     DetailView TabPane > VerticalScroll {
         height: 1fr;
+        min-height: 10;
     }
 
-    DetailView #builds-scroll {
+    DetailView #builds-container {
         height: 1fr;
-        scrollbar-gutter: stable;
+        min-height: 10;
     }
 
-    DetailView #builds-scroll > * {
+    DetailView #builds-container > * {
         width: 100%;
     }
 
@@ -108,9 +109,12 @@ class DetailView(Static):
     }
 
     DetailView .env-section {
-        margin: 1 0;
+        width: 1fr;
+        margin: 0 1 0 0;
         padding: 1;
         border: solid $surface-lighten-2;
+        height: 100%;
+        overflow-y: auto;
     }
 
     DetailView .env-section.success {
@@ -132,10 +136,11 @@ class DetailView(Static):
 
     DetailView .info-row {
         height: 1;
+        width: 100%;
     }
 
     DetailView .info-label {
-        width: 12;
+        width: 8;
         color: $text-muted;
     }
 
@@ -143,13 +148,38 @@ class DetailView(Static):
         width: 1fr;
     }
 
-    DetailView .workflow-section {
-        margin-top: 1;
-        padding-left: 2;
+    DetailView .env-row {
+        width: 100%;
+        height: 1fr;
     }
 
-    DetailView .workflow-title {
-        text-style: italic;
+    DetailView .workflow-list {
+        width: 100%;
+        height: auto;
+    }
+
+    DetailView .workflow-card {
+        width: 100%;
+        padding: 1;
+        margin-bottom: 1;
+        border: solid $surface-lighten-2;
+        height: auto;
+    }
+
+    DetailView .workflow-card.success {
+        border: solid $success 50%;
+    }
+
+    DetailView .workflow-card.failure {
+        border: solid $error 50%;
+    }
+
+    DetailView .workflow-card.running {
+        border: solid $warning 50%;
+    }
+
+    DetailView .workflow-card-title {
+        text-style: bold;
         margin-bottom: 1;
     }
 
@@ -352,16 +382,39 @@ class DetailView(Static):
         self._health_task = asyncio.create_task(self._run_health_checks())
 
     async def _run_health_checks(self) -> None:
-        """Run health checks for both environments."""
+        """Run health checks for environments and workflows."""
         tasks = []
-        if self.app_data.dev.url:
+        # Environment health checks (only if no workflows)
+        if self.app_data.dev.url and not self.app_data.dev.has_workflows:
             tasks.append(fetch_health_check(self.app_data.dev))
-        if self.app_data.prod.url:
+        if self.app_data.prod.url and not self.app_data.prod.has_workflows:
             tasks.append(fetch_health_check(self.app_data.prod))
+
+        # Workflow health checks
+        for env in [self.app_data.dev, self.app_data.prod]:
+            for workflow in env.workflows:
+                if workflow.url:
+                    tasks.append(self._fetch_workflow_health(workflow))
 
         if tasks:
             await asyncio.gather(*tasks)
             self._update_health_display()
+
+    async def _fetch_workflow_health(self, workflow) -> None:
+        """Fetch health check for a workflow."""
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                url = f"https://{workflow.url}"
+                start = asyncio.get_event_loop().time()
+                response = await client.get(url, follow_redirects=True)
+                latency = int((asyncio.get_event_loop().time() - start) * 1000)
+                workflow.health_ok = response.status_code < 400
+                workflow.health_code = response.status_code
+                workflow.health_latency_ms = latency
+        except Exception as e:
+            workflow.health_ok = False
+            workflow.health_error = str(e)[:30]
 
     def compose(self) -> ComposeResult:
         """Compose the detail view."""
@@ -383,13 +436,15 @@ class DetailView(Static):
             # Content with tabs
             with TabbedContent(id="detail-tabs", classes=content_class):
                 with TabPane("Build Status", id="tab-builds"):
-                    with VerticalScroll(id="builds-scroll"):
+                    with Vertical(id="builds-container"):
                         # Release info if tracking
                         if self.app_data.latest_release:
                             yield from self._render_release_section(self.app_data.latest_release)
 
-                        yield from self._render_environment_section(self.app_data.dev, "Development")
-                        yield from self._render_environment_section(self.app_data.prod, "Production")
+                        # DEV and PROD side by side
+                        with Horizontal(classes="env-row"):
+                            yield from self._render_environment_section(self.app_data.dev, "Development")
+                            yield from self._render_environment_section(self.app_data.prod, "Production")
                         yield Static("Press 'o' GitHub, 'u' URL, 'Esc' close", classes="action-hint")
 
                 with TabPane("Git", id="tab-branches"):
@@ -437,42 +492,40 @@ class DetailView(Static):
         with Vertical(classes=f"env-section {status_class}"):
             yield Static(f"{title} ({env.name})", classes="section-title")
 
-            # URL
-            with Horizontal(classes="info-row"):
-                yield Static("URL:", classes="info-label")
-                if env.url:
-                    url = f"https://{env.url}"
-                    yield Static(url, classes="info-value link")
-                    yield Button("📋", id=f"copy-url-{env.name}", classes="copy-btn", variant="default")
-                else:
-                    yield Static("Not deployed", classes="info-value")
-
-            # Health check
-            if env.url:
-                with Horizontal(classes="info-row"):
-                    yield Static("Health:", classes="info-label")
-                    yield Static("⏳ Checking...", id=f"health-{env.name}", classes="info-value status-loading")
-
-            # Repo/Branch
-            if env.repo:
-                with Horizontal(classes="info-row"):
-                    yield Static("Repository:", classes="info-label")
-                    repo_url = f"https://github.com/{env.repo}"
-                    yield Static(repo_url, classes="info-value link")
-                    yield Button("📋", id=f"copy-repo-{env.name}", classes="copy-btn", variant="default")
-
-                with Horizontal(classes="info-row"):
-                    yield Static("Branch:", classes="info-label")
-                    yield Static(env.branch, classes="info-value")
-
-            # Status
+            # If we have workflows, show them as cards (vertical stack)
             if env.has_workflows:
-                # Show workflow details
-                with Vertical(classes="workflow-section"):
-                    yield Static("Workflows:", classes="workflow-title")
+                with Vertical(classes="workflow-list"):
                     for workflow in env.workflows:
-                        yield from self._render_workflow_info(workflow, env.name)
+                        yield from self._render_workflow_card(workflow, env.name)
             else:
+                # Show environment URL/health/repo for non-workflow environments
+                # URL
+                with Horizontal(classes="info-row"):
+                    yield Static("URL:", classes="info-label")
+                    if env.url:
+                        short_url = env.url.replace(".hotosm.org", "")
+                        yield Static(short_url, classes="info-value link")
+                        yield Button("📋", id=f"copy-url-{env.name}", classes="copy-btn", variant="default")
+                    else:
+                        yield Static("Not deployed", classes="info-value")
+
+                # Health check
+                if env.url:
+                    with Horizontal(classes="info-row"):
+                        yield Static("Health:", classes="info-label")
+                        yield Static("⏳ Checking...", id=f"health-{env.name}", classes="info-value status-loading")
+
+                # Repo/Branch
+                if env.repo:
+                    with Horizontal(classes="info-row"):
+                        yield Static("Repo:", classes="info-label")
+                        yield Static(env.repo, classes="info-value link")
+                        yield Button("📋", id=f"copy-repo-{env.name}", classes="copy-btn", variant="default")
+
+                    with Horizontal(classes="info-row"):
+                        yield Static("Branch:", classes="info-label")
+                        yield Static(env.branch, classes="info-value")
+
                 # Show environment status
                 yield from self._render_status_info(env)
 
@@ -504,10 +557,56 @@ class DetailView(Static):
 
         # Error logs
         if env.status == Status.FAILURE and env.error_lines:
-            yield from self._render_error_section(env.error_lines, env.name, env.repo, env.run_id)
+            yield from self._render_error_section(env.error_lines, env.name, env.repo, env.run_id, env.job_id)
+
+    def _render_workflow_card(self, workflow: Workflow, env_name: str = "") -> ComposeResult:
+        """Render a workflow as a card."""
+        status_icon = get_status_icon(workflow.status)
+        status_class = workflow.status.value
+        card_id = f"{env_name}-{workflow.display_name}".replace(" ", "-")
+
+        with Vertical(classes=f"workflow-card {status_class}"):
+            yield Static(f"{workflow.icon} {workflow.display_name}", classes="workflow-card-title")
+
+            # URL (show short version, full URL available via 'u' key)
+            if workflow.url:
+                short_url = workflow.url.replace(".hotosm.org", "")
+                with Horizontal(classes="info-row"):
+                    yield Static("URL:", classes="info-label")
+                    yield Static(short_url, classes="info-value link")
+
+                # Health check
+                with Horizontal(classes="info-row"):
+                    yield Static("Health:", classes="info-label")
+                    yield Static("⏳ Checking...", id=f"health-wf-{card_id}", classes="info-value status-loading")
+
+            # Branch
+            if workflow.branch:
+                with Horizontal(classes="info-row"):
+                    yield Static("Branch:", classes="info-label")
+                    yield Static(workflow.branch, classes="info-value")
+
+            # Status
+            with Horizontal(classes="info-row"):
+                yield Static("Build:", classes="info-label")
+                yield Static(f"{status_icon} {workflow.status.value.upper()}", classes=f"info-value status-{workflow.status.value}")
+
+            if workflow.time:
+                time_ago = humanize.naturaltime(workflow.time, when=datetime.now(timezone.utc))
+                with Horizontal(classes="info-row"):
+                    yield Static("Last run:", classes="info-label")
+                    yield Static(time_ago, classes="info-value")
+
+            if workflow.actor:
+                with Horizontal(classes="info-row"):
+                    yield Static("By:", classes="info-label")
+                    yield Static(f"@{workflow.actor}", classes="info-value actor")
+
+            if workflow.status == Status.FAILURE and workflow.error_lines:
+                yield from self._render_error_section(workflow.error_lines, f"{env_name}-{workflow.name}", workflow.repo, workflow.run_id, workflow.job_id)
 
     def _render_workflow_info(self, workflow: Workflow, env_name: str = "") -> ComposeResult:
-        """Render info for a workflow."""
+        """Render info for a workflow (legacy vertical style)."""
         status_icon = get_status_icon(workflow.status)
         status_class = f"status-{workflow.status.value}"
 
@@ -523,7 +622,7 @@ class DetailView(Static):
                 yield Static(f"Last run: {time_ago}{actor_info}", classes="info-value")
 
         if workflow.status == Status.FAILURE and workflow.error_lines:
-            yield from self._render_error_section(workflow.error_lines, f"{env_name}-{workflow.name}", workflow.repo, workflow.run_id)
+            yield from self._render_error_section(workflow.error_lines, f"{env_name}-{workflow.name}", workflow.repo, workflow.run_id, workflow.job_id)
 
     def _render_commit_info(self, commit: Commit) -> ComposeResult:
         """Render commit info section."""
@@ -584,28 +683,20 @@ class DetailView(Static):
                         yield Static(f"    {commit.sha}", classes="commit-sha-small")
                         yield Static(commit.message[:35], classes="commit-msg")
 
-    def _render_error_section(self, error_lines: list[str], env_name: str = "", repo: str = "", run_id: int = None) -> ComposeResult:
+    def _render_error_section(self, error_lines: list[str], env_name: str = "", repo: str = "", run_id: int = None, job_id: int = None) -> ComposeResult:
         """Render error log section with link to GitHub."""
-        # Find the actual error message
-        error_msg = "Build failed"
-        for line in error_lines:
-            if '##[error]' in line:
-                # Extract message after ##[error]
-                error_msg = line.split('##[error]')[-1].strip()[:80]
-                break
-            elif 'error' in line.lower() and 'failed' in line.lower():
-                error_msg = line.strip()[:80]
-                break
-
-        with Vertical(classes="error-section"):
-            yield Static(f"❌ {error_msg}", classes="error-title")
-            if repo and run_id:
-                yield Button(
-                    "🔗 Ver error en GitHub",
-                    id=f"open-error-{env_name}",
-                    classes="github-error-btn",
-                    variant="error"
-                )
+        if repo and run_id:
+            # Link directly to the failed job if we have job_id
+            if job_id:
+                url = f"https://github.com/{repo}/actions/runs/{run_id}/job/{job_id}"
+            else:
+                url = f"https://github.com/{repo}/actions/runs/{run_id}"
+            with Horizontal(classes="info-row"):
+                yield Static("Error:", classes="info-label")
+                yield Static(f"❌ Build failed", classes="info-value status-failure")
+            with Horizontal(classes="info-row"):
+                yield Static("", classes="info-label")
+                yield Static(url, classes="info-value link")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press."""
@@ -678,8 +769,9 @@ class DetailView(Static):
 
     def _update_health_display(self) -> None:
         """Update the health status widgets."""
+        # Update environment health (only for envs without workflows)
         for env in [self.app_data.dev, self.app_data.prod]:
-            if not env.url:
+            if not env.url or env.has_workflows:
                 continue
             try:
                 widget = self.query_one(f"#health-{env.name}", Static)
@@ -696,6 +788,28 @@ class DetailView(Static):
                     widget.set_classes("info-value status-failure")
             except Exception:
                 pass
+
+        # Update workflow health
+        for env in [self.app_data.dev, self.app_data.prod]:
+            for workflow in env.workflows:
+                if not workflow.url:
+                    continue
+                card_id = f"{env.name}-{workflow.display_name}".replace(" ", "-")
+                try:
+                    widget = self.query_one(f"#health-wf-{card_id}", Static)
+                    if workflow.health_ok is None:
+                        widget.update("⏳ Checking...")
+                        widget.set_classes("info-value status-loading")
+                    elif workflow.health_ok:
+                        latency = f"{workflow.health_latency_ms}ms" if workflow.health_latency_ms else ""
+                        widget.update(f"✓ {workflow.health_code} OK {latency}")
+                        widget.set_classes("info-value status-success")
+                    else:
+                        error = workflow.health_error or f"HTTP {workflow.health_code}"
+                        widget.update(f"✗ {error}")
+                        widget.set_classes("info-value status-failure")
+                except Exception:
+                    pass
 
     def update_app(self, app: App) -> None:
         """Update with new app data."""

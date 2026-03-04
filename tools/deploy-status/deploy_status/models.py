@@ -20,14 +20,21 @@ class Workflow:
     name: str  # GitHub workflow name (for API)
     display_name: str = ""  # Short name for UI
     icon: str = "⚙️"
+    url: str = ""  # Deployment URL for this workflow
     status: Status = Status.LOADING
     run_id: Optional[int] = None
+    job_id: Optional[int] = None  # Failed job ID for direct link
     time: Optional[datetime] = None
     duration_seconds: Optional[int] = None
     error_lines: list[str] = field(default_factory=list)
     repo: str = ""
     branch: str = ""
     actor: Optional[str] = None  # User who triggered the build
+    # Health check fields
+    health_ok: Optional[bool] = None
+    health_code: Optional[int] = None
+    health_latency_ms: Optional[int] = None
+    health_error: Optional[str] = None
 
     def __post_init__(self):
         if not self.display_name:
@@ -62,6 +69,7 @@ class Environment:
     branch: str = ""
     status: Status = Status.LOADING
     run_id: Optional[int] = None
+    job_id: Optional[int] = None  # Failed job ID for direct link
     time: Optional[datetime] = None
     duration_seconds: Optional[int] = None
     error_lines: list[str] = field(default_factory=list)
@@ -257,17 +265,22 @@ def get_apps() -> list[App]:
             icon="📍",
             dev=Environment(
                 name="DEV",
-                url="testlogin.umap.hotosm.org",
+                url="umap-dev.hotosm.org",
                 repo="hotosm/umap",
-                branch="login_hanko",
+                branch="develop",
+                workflows=[
+                    Workflow(name="Deploy login-hanko to testlogin.umap.hotosm.org", display_name="testlogin", icon="🔐", url="testlogin.umap.hotosm.org", repo="hotosm/umap", branch="login_hanko"),
+                    Workflow(name="Build & deploy develop to umap-dev.hotosm.org", display_name="umap-dev", icon="🌐", url="umap-dev.hotosm.org", repo="hotosm/umap", branch="develop"),
+                ],
             ),
             prod=Environment(
                 name="PROD",
-                url="",
-                status=Status.NONE,
+                url="umap.hotosm.org",
+                repo="hotosm/umap",
+                branch="master",
             ),
             compare_configs=[
-                BranchCompareConfig(base="develop", head="login_hanko", label="login_hanko → develop"),
+                BranchCompareConfig(base="master", head="develop", label="develop → master"),
             ],
         ),
         App(
