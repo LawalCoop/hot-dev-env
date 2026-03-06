@@ -269,6 +269,8 @@ services:
       - SESSION_COOKIE_SAME_SITE=lax
       - SESSION_COOKIE_SECURE=false
       - THIRD_PARTY_COOKIE_DOMAIN=.hotosm.test
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
     networks:
       - hotosm
     labels:

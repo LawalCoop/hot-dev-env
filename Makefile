@@ -384,6 +384,14 @@ update:
 deploy-status:
 	@command -v uv >/dev/null 2>&1 || { echo "Error: 'uv' not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"; exit 1; }
 	@command -v gh >/dev/null 2>&1 || { echo "Error: 'gh' (GitHub CLI) not found."; echo "  Mac: brew install gh && gh auth login"; echo "  Linux: sudo apt install gh && gh auth login"; exit 1; }
+	@if [ "$$(uname)" = "Linux" ]; then \
+		command -v xclip >/dev/null 2>&1 || command -v xsel >/dev/null 2>&1 || command -v wl-copy >/dev/null 2>&1 || { \
+			echo "Installing xclip for clipboard support..."; \
+			sudo apt-get install -y xclip; \
+		}; \
+	elif [ "$$(uname)" = "Darwin" ]; then \
+		command -v pbcopy >/dev/null 2>&1 || { echo "Warning: pbcopy not found (should be built-in on macOS)"; }; \
+	fi
 	@cd tools/deploy-status && uv run deploy-status
 
 # ==================

@@ -22,13 +22,20 @@ def copy_to_clipboard(text: str) -> bool:
     try:
         if platform.system() == "Darwin":
             subprocess.run(["pbcopy"], input=text.encode(), check=True)
+            return True
         else:
-            # Linux - try xclip first, then xsel
-            try:
-                subprocess.run(["xclip", "-selection", "clipboard"], input=text.encode(), check=True)
-            except FileNotFoundError:
-                subprocess.run(["xsel", "--clipboard", "--input"], input=text.encode(), check=True)
-        return True
+            # Linux - try multiple clipboard tools
+            for cmd in [
+                ["wl-copy"],  # Wayland
+                ["xclip", "-selection", "clipboard"],  # X11
+                ["xsel", "--clipboard", "--input"],  # X11 alternative
+            ]:
+                try:
+                    subprocess.run(cmd, input=text.encode(), check=True, stderr=subprocess.DEVNULL)
+                    return True
+                except FileNotFoundError:
+                    continue
+            return False
     except Exception:
         return False
 
@@ -197,13 +204,19 @@ class DetailView(Static):
     }
 
     DetailView .copy-btn {
-        width: 4;
-        min-width: 4;
+        width: 8;
+        min-width: 8;
         height: 1;
-        padding: 0;
+        padding: 0 1;
         margin-left: 1;
-        border: none;
-        background: transparent;
+        border: solid $primary;
+        background: $primary 20%;
+        color: $primary-lighten-2;
+    }
+
+    DetailView .copy-btn:hover {
+        background: $primary 50%;
+        color: $text;
     }
 
     DetailView .commit-section {
@@ -711,7 +724,7 @@ class DetailView(Static):
                 if copy_to_clipboard(f"https://{env.url}"):
                     self.notify("URL copied!")
                 else:
-                    self.notify("Failed to copy", severity="error")
+                    self.notify("Install xclip: sudo apt install xclip", severity="warning")
         elif btn_id.startswith("copy-repo-"):
             env_name = btn_id.replace("copy-repo-", "")
             env = self.app_data.dev if env_name == "DEV" else self.app_data.prod
@@ -719,7 +732,7 @@ class DetailView(Static):
                 if copy_to_clipboard(f"https://github.com/{env.repo}"):
                     self.notify("Repository URL copied!")
                 else:
-                    self.notify("Failed to copy", severity="error")
+                    self.notify("Install xclip: sudo apt install xclip", severity="warning")
         elif btn_id.startswith("copy-error-"):
             error_id = btn_id.replace("copy-error-", "")
             error_lines = []
@@ -741,7 +754,7 @@ class DetailView(Static):
                 if copy_to_clipboard("\n".join(error_lines)):
                     self.notify("Error log copied!")
                 else:
-                    self.notify("Failed to copy", severity="error")
+                    self.notify("Install xclip: sudo apt install xclip", severity="warning")
         elif btn_id.startswith("open-error-"):
             # Open GitHub Actions run for the failed build
             error_id = btn_id.replace("open-error-", "")
