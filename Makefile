@@ -1,11 +1,14 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
 export COMPOSE_DOCKER_CLI_BUILD := 1
+
+# Reusable compose command for the Field-TM project, kept here to avoid repetition
+FIELD_TM_COMPOSE := cd ../field-tm && docker compose -f compose.yaml -f $(CURDIR)/docker-compose.field-tm.yml --env-file .env -p field-tm
 
 # Default target
 help:
@@ -182,17 +185,12 @@ dev:
 	@echo "Building and starting services..."
 	@echo ""
 	@./scripts/init-field-tm-env.sh 2>/dev/null || true
-	@docker compose build & \
-		if [ -d "../field-tm" ]; then \
-			(cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml --env-file .env -p field-tm build) & \
-		fi; \
-		wait
-	@docker compose up -d & \
-		if [ -d "../field-tm" ]; then \
-			(while ! docker network inspect hotosm-dev >/dev/null 2>&1; do sleep 0.1; done; \
-			 cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml --env-file .env -p field-tm up -d) & \
-		fi; \
-		wait
+	@docker compose up --build -d
+	@if [ -d "../field-tm" ]; then \
+		echo ""; \
+		echo "Starting Field-TM..."; \
+		$(FIELD_TM_COMPOSE) up --build -d; \
+	fi
 	@echo ""
 	@echo "════════════════════════════════════════════════"
 	@echo "  ✓ HOTOSM Development Environment Ready!"
@@ -270,7 +268,7 @@ dev-raw-data-api:
 dev-field:
 	@echo "Starting Field-TM services..."
 	@./scripts/init-field-tm-env.sh
-	@cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml --env-file .env -p field-tm up --build -d
+	@$(FIELD_TM_COMPOSE) up --build -d
 
 # ==================
 # Management
@@ -279,20 +277,41 @@ dev-field:
 stop:
 	@echo "Stopping all services..."
 	@if [ -d "../field-tm" ]; then \
-		cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml -p field-tm down 2>/dev/null || true; \
+		$(FIELD_TM_COMPOSE) down 2>/dev/null || true; \
 	fi
 	docker compose down
 
-restart: stop dev
+restart:
+	@echo "Restarting all services..."
+	@docker compose restart
+	@if [ -d "../field-tm" ]; then \
+		$(FIELD_TM_COMPOSE) restart; \
+	fi
 
 logs:
-	docker compose logs
+	@docker compose logs
+	@if [ -d "../field-tm" ]; then \
+		echo ""; \
+		echo "── Field-TM logs ──"; \
+		$(FIELD_TM_COMPOSE) logs; \
+	fi
 
 logs-follow:
-	docker compose logs -f
+	@if [ -d "../field-tm" ]; then \
+		docker compose logs -f & \
+		($(FIELD_TM_COMPOSE) logs -f) & \
+		wait; \
+	else \
+		docker compose logs -f; \
+	fi
 
 ps:
-	docker compose ps
+	@docker compose ps
+	@if [ -d "../field-tm" ]; then \
+		echo ""; \
+		echo "── Field-TM ──"; \
+		$(FIELD_TM_COMPOSE) ps; \
+	fi
 
 health:
 	@echo "════════════════════════════════════════════════"
@@ -385,6 +404,9 @@ unlink-auth-libs:
 
 clean:
 	@echo "Cleaning all containers and volumes..."
+	@if [ -d "../field-tm" ]; then \
+		$(FIELD_TM_COMPOSE) down -v 2>/dev/null || true; \
+	fi
 	docker compose down -v
 	@echo "✓ Cleaned"
 

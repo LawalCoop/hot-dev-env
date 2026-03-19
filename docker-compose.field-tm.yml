@@ -4,16 +4,28 @@ networks:
     external: true
 
 services:
+  proxy:
+    networks:
+      - ftm-net
+      - hotosm
+    environment:
+      # Add field.hotosm.test so BunkerWeb serves the UI via Traefik
+      SERVER_NAME: field.localhost odk.field.localhost qfield.field.localhost mail.field.localhost field.hotosm.test
+      field.hotosm.test_REVERSE_PROXY_HOST: http://api:8000
+      field.hotosm.test_MAX_CLIENT_SIZE: 1G
+      field.hotosm.test_REVERSE_PROXY_INTERCEPT_ERRORS: "no"
+      field.hotosm.test_REVERSE_PROXY_READ_TIMEOUT: 90s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.field-tm.rule=Host(`field.hotosm.test`)"
+      - "traefik.http.routers.field-tm.entrypoints=websecure"
+      - "traefik.http.routers.field-tm.tls=true"
+      - "traefik.http.services.field-tm.loadbalancer.server.port=8080"
+      - "traefik.docker.network=hotosm-dev"
+
   api:
     networks:
       - ftm-net
       - hotosm
     environment:
       FTM_DOMAIN: field.hotosm.test
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.field-tm.rule=Host(`field.hotosm.test`)"
-      - "traefik.http.routers.field-tm.entrypoints=websecure"
-      - "traefik.http.routers.field-tm.tls=true"
-      - "traefik.http.services.field-tm.loadbalancer.server.port=8000"
-      - "traefik.docker.network=hotosm-dev"
