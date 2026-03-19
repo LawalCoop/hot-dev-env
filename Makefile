@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -30,6 +30,7 @@ help:
 	@echo "  make dev-tm          - Start Tasking Manager only"
 	@echo "  make dev-export-tool - Start Export Tool only"
 	@echo "  make dev-raw-data-api - Start Raw Data API only"
+	@echo "  make dev-field       - Start Field-TM only"
 	@echo ""
 	@echo "Management:"
 	@echo "  make stop           - Stop all services"
@@ -66,6 +67,7 @@ help:
 	@echo "  Tasking Manager:     https://tm.hotosm.test"
 	@echo "  Export Tool:     https://export-tool.hotosm.test"
 	@echo "  Raw Data API:    https://raw-data-api.hotosm.test"
+	@echo "  Field-TM:        https://field.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -159,6 +161,11 @@ install:
 		cd ../raw-data-api && pip install -e . 2>/dev/null || echo "   ⚠ Some deps require GDAL/system libs (OK - runs in Docker)"; \
 	fi
 	@echo ""
+	@if [ -d "../field-tm/src/backend" ]; then \
+		echo "→ Field-TM backend..."; \
+		cd ../field-tm/src/backend && uv sync || echo "   ⚠ Some deps may fail (OK - runs in Docker)"; \
+	fi
+	@echo ""
 	@echo "✓ All dependencies installed"
 	@echo ""
 	@echo "Next: make dev"
@@ -174,14 +181,18 @@ dev:
 	@echo ""
 	@echo "Building and starting services..."
 	@echo ""
-	@docker compose up --build -d
-	@echo ""
-	@echo "════════════════════════════════════════════════"
-	@echo "  Services are starting..."
-	@echo "════════════════════════════════════════════════"
-	@echo ""
-	@echo "Waiting for services to be ready..."
-	@sleep 10
+	@./scripts/init-field-tm-env.sh 2>/dev/null || true
+	@docker compose build & \
+		if [ -d "../field-tm" ]; then \
+			(cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml --env-file .env -p field-tm build) & \
+		fi; \
+		wait
+	@docker compose up -d & \
+		if [ -d "../field-tm" ]; then \
+			(while ! docker network inspect hotosm-dev >/dev/null 2>&1; do sleep 0.1; done; \
+			 cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml --env-file .env -p field-tm up -d) & \
+		fi; \
+		wait
 	@echo ""
 	@echo "════════════════════════════════════════════════"
 	@echo "  ✓ HOTOSM Development Environment Ready!"
@@ -199,6 +210,7 @@ dev:
 	@echo "  Tasking Mgr:     https://tm.hotosm.test"
 	@echo "  Export Tool:     https://export-tool.hotosm.test"
 	@echo "  Raw Data API:    https://raw-data-api.hotosm.test"
+	@echo "  Field-TM:        https://field.hotosm.test"
 	@echo "  MinIO Console:   https://minio.hotosm.test"
 	@echo "  Traefik:         https://traefik.hotosm.test"
 	@echo ""
@@ -255,12 +267,20 @@ dev-raw-data-api:
 	@echo "Starting Raw Data API services..."
 	docker compose up raw-data-api raw-data-api-db raw-data-api-worker redis traefik --build
 
+dev-field:
+	@echo "Starting Field-TM services..."
+	@./scripts/init-field-tm-env.sh
+	@cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml --env-file .env -p field-tm up --build -d
+
 # ==================
 # Management
 # ==================
 
 stop:
 	@echo "Stopping all services..."
+	@if [ -d "../field-tm" ]; then \
+		cd ../field-tm && docker compose -f compose.yaml -f ../hot-dev-env/docker-compose.field-tm.yml -p field-tm down 2>/dev/null || true; \
+	fi
 	docker compose down
 
 restart: stop dev
@@ -310,6 +330,9 @@ health:
 	@echo "Tasking Manager:"
 	@curl -f -s -k https://tm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@curl -f -s -k https://tm.hotosm.test/api/docs > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@echo ""
+	@echo "Field-TM:"
+	@curl -f -s https://field.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
 	@echo ""
 	@echo "Shared:"
 	@curl -f -s https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
@@ -378,6 +401,7 @@ update:
 	@cd ../raw-data-api && git pull && echo "  ✓ Raw Data API"
 	@cd ../tasking-manager && git pull && echo "  ✓ Tasking Manager"
 	@cd ../auth-libs && git pull && echo "  ✓ Auth-libs"
+	@cd ../field-tm && git pull && echo "  ✓ Field-TM"
 	@echo ""
 	@echo "✓ Updated. Run 'make install' if dependencies changed."
 

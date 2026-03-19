@@ -1161,6 +1161,7 @@ services:
       - EXPORT_PATH=/tmp/exports
       - ENABLE_POLYGON_STATISTICS_ENDPOINTS=true
       - ENABLE_CUSTOM_EXPORTS=true
+      - DEFAULT_QUEUE_NAME=raw_ondemand
       - OSM_URL=https://www.openstreetmap.org
       - OSM_CLIENT_ID=dummy
       - OSM_CLIENT_SECRET=dummy
@@ -1200,6 +1201,7 @@ services:
       - LOG_LEVEL=info
       - EXPORT_PATH=/tmp/exports
       - ENABLE_CUSTOM_EXPORTS=true
+      - DEFAULT_QUEUE_NAME=raw_ondemand
       - OSM_URL=https://www.openstreetmap.org
       - OSM_CLIENT_ID=dummy
       - OSM_CLIENT_SECRET=dummy

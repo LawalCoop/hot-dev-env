@@ -4,13 +4,16 @@ echo "Checking hosts file configuration..."
 
 # Detect OS and set hosts file path
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
-    # Windows
     HOSTS_FILE="/c/Windows/System32/drivers/etc/hosts"
     IS_WINDOWS=true
 else
-    # Linux and macOS
     HOSTS_FILE="/etc/hosts"
     IS_WINDOWS=false
+fi
+
+IS_WSL=false
+if [[ "$IS_WINDOWS" = false ]] && grep -qi "microsoft" /proc/version 2>/dev/null; then
+    IS_WSL=true
 fi
 
 HOSTS_ENTRIES=(
@@ -28,6 +31,7 @@ HOSTS_ENTRIES=(
     "127.0.0.1 s3.hotosm.test"
     "127.0.0.1 tm.hotosm.test"
     "127.0.0.1 traefik.hotosm.test"
+    "127.0.0.1 field.hotosm.test"
 )
 
 MISSING_ENTRIES=()
@@ -135,6 +139,31 @@ else
             echo "$entry"
         done
         echo "EOF'"
+        echo ""
+    fi
+fi
+
+if [[ "$IS_WSL" = true ]]; then
+    WINDOWS_HOSTS="/mnt/c/Windows/System32/drivers/etc/hosts"
+    MISSING_WINDOWS_ENTRIES=()
+    if [[ -f "$WINDOWS_HOSTS" ]]; then
+        for entry in "${HOSTS_ENTRIES[@]}"; do
+            hostname=$(echo "$entry" | awk '{print $2}')
+            if ! grep -q "$hostname" "$WINDOWS_HOSTS" 2>/dev/null; then
+                MISSING_WINDOWS_ENTRIES+=("$entry")
+            fi
+        done
+    else
+        MISSING_WINDOWS_ENTRIES=("${HOSTS_ENTRIES[@]}")
+    fi
+
+    if [[ ${#MISSING_WINDOWS_ENTRIES[@]} -gt 0 ]]; then
+        echo "WSL detected. Add these entries to the Windows hosts file as Administrator:"
+        echo "  C:\\Windows\\System32\\drivers\\etc\\hosts"
+        echo ""
+        for entry in "${MISSING_WINDOWS_ENTRIES[@]}"; do
+            echo "  $entry"
+        done
         echo ""
     fi
 fi

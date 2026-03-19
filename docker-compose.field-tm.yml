@@ -1,0 +1,19 @@
+networks:
+  hotosm:
+    name: hotosm-dev
+    external: true
+
+services:
+  api:
+    networks:
+      - ftm-net
+      - hotosm
+    environment:
+      FTM_DOMAIN: field.hotosm.test
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.field-tm.rule=Host(`field.hotosm.test`)"
+      - "traefik.http.routers.field-tm.entrypoints=websecure"
+      - "traefik.http.routers.field-tm.tls=true"
+      - "traefik.http.services.field-tm.loadbalancer.server.port=8000"
+      - "traefik.docker.network=hotosm-dev"

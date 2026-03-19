@@ -51,6 +51,7 @@ declare -A REPO_URLS=(
     ["osm-export-tool"]="https://github.com/hotosm/osm-export-tool.git"
     ["raw-data-api"]="https://github.com/hotosm/raw-data-api.git"
     ["tasking-manager"]="https://github.com/hotosm/tasking-manager.git"
+    ["field-tm"]="https://github.com/hotosm/field-tm.git"
 )
 
 declare -A REPO_URLS_SSH=(
@@ -65,6 +66,7 @@ declare -A REPO_URLS_SSH=(
     ["osm-export-tool"]="git@github.com:hotosm/osm-export-tool.git"
     ["raw-data-api"]="git@github.com:hotosm/raw-data-api.git"
     ["tasking-manager"]="git@github.com:hotosm/tasking-manager.git"
+    ["field-tm"]="git@github.com:hotosm/field-tm.git"
 )
 
 if [[ ! -d "../portal" ]]; then
@@ -109,6 +111,10 @@ fi
 
 if [[ ! -d "../tasking-manager" ]]; then
     MISSING_REPOS+=("tasking-manager")
+fi
+
+if [[ ! -d "../field-tm" ]]; then
+    MISSING_REPOS+=("field-tm")
 fi
 
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
@@ -230,7 +236,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         exit 1
     fi
 else
-    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap, osm-export-tool, raw-data-api, tasking-manager)"
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap, osm-export-tool, raw-data-api, tasking-manager, field-tm)"
     echo ""
 
     # Ensure portal and login repos are on develop branch
@@ -389,6 +395,8 @@ else
     echo "  ✓ ../raw-data-api/.env already exists"
 fi
 
+./scripts/init-field-tm-env.sh
+
 echo ""
 
 # Configure /etc/hosts
@@ -411,6 +419,7 @@ echo "     - ../fAIr/backend/.env"
 echo "     - ../umap/.env"
 echo "     - ../tasking-manager/tasking-manager.env"
 echo "     - ../raw-data-api/.env"
+echo "     - ../field-tm/.env"
 echo ""
 echo "  2. (Optional) Update Google OAuth credentials in:"
 echo "     - ./config/hanko-config.yaml"
@@ -432,6 +441,7 @@ echo "  ChatMap:         https://chatmap.hotosm.test"
 echo "  Tasking Mgr:     https://tm.hotosm.test"
 echo "  Export Tool:     https://export-tool.hotosm.test"
 echo "  Raw Data API:    https://raw-data-api.hotosm.test"
+echo "  Field-TM:        https://field.hotosm.test"
 echo "  Hanko Auth:      https://login.hotosm.test"
 echo "  MinIO Console:   https://minio.hotosm.test"
 echo "  Traefik:         https://traefik.hotosm.test"

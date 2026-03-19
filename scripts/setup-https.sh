@@ -195,6 +195,7 @@ if [ -f "$CERTS_DIR/localhost.crt" ] && [ -f "$CERTS_DIR/localhost.key" ]; then
         echo -e "  ${GREEN}https://tm.hotosm.test${NC}"
         echo -e "  ${GREEN}https://export-tool.hotosm.test${NC}"
         echo -e "  ${GREEN}https://raw-data-api.hotosm.test${NC}"
+        echo -e "  ${GREEN}https://field.hotosm.test${NC}"
         echo ""
         exit 0
     fi
@@ -264,6 +265,7 @@ echo -e "   ${GREEN}https://chatmap.hotosm.test${NC}           - ChatMap"
 echo -e "   ${GREEN}https://tm.hotosm.test${NC}                - Tasking Manager"
 echo -e "   ${GREEN}https://export-tool.hotosm.test${NC}       - OSM Export Tool"
 echo -e "   ${GREEN}https://raw-data-api.hotosm.test${NC}     - Raw Data API"
+echo -e "   ${GREEN}https://field.hotosm.test${NC}            - Field Tasking Manager"
 echo ""
 echo "   Infrastructure (.hotosm.test):"
 echo -e "   ${GREEN}https://minio.hotosm.test${NC}        - S3 storage console"
