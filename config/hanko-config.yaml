@@ -11,6 +11,8 @@ server:
         - "https://chatmap.hotosm.test"
         - "https://umap.hotosm.test"
         - "https://export-tool.hotosm.test"
+        - "https://field.hotosm.test"
+        - "http://field.hotosm.test:7050"
       allow_credentials: true
       unsafe_wildcard_origin_allowed: true
 
@@ -88,6 +90,8 @@ session:
     - "https://chatmap.hotosm.test"
     - "https://umap.hotosm.test"
     - "https://export-tool.hotosm.test"
+    - "https://field.hotosm.test"
+    - "http://field.hotosm.test:7050"
   cookie:
     name: "hanko"
     domain: ".hotosm.test"
@@ -107,6 +111,8 @@ third_party:
     - "https://chatmap.hotosm.test/**"
     - "https://umap.hotosm.test/**"
     - "https://export-tool.hotosm.test/**"
+    - "https://field.hotosm.test/**"
+    - "http://field.hotosm.test:7050/**"
   cookie:
     domain: ".hotosm.test"
     http_only: true

@@ -29,3 +29,10 @@ services:
       - hotosm
     environment:
       FTM_DOMAIN: field.hotosm.test
+      # Use the shared Hanko from hot-dev-env (hotosm-dev network).
+      # HANKO_API_URL   – backend → Hanko (internal Docker network)
+      # HANKO_PUBLIC_URL – browser → Hanko (via Traefik)
+      # LOGIN_URL        – where the sign-in button redirects the browser
+      HANKO_API_URL: http://hanko:8000
+      HANKO_PUBLIC_URL: https://login.hotosm.test
+      LOGIN_URL: https://login.hotosm.test/app
