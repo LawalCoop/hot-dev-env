@@ -253,22 +253,22 @@ show_dashboard() {
     fetch_and_show "Drone-TM" \
         "hotosm/drone-tm" "develop" \
         "hotosm/drone-tm" "main" \
-        "testlogin.dronetm.hotosm.org" "dronetm.hotosm.org"
+        "dronetm.testlogin.hotosm.org" "dronetm.hotosm.org"
 
     fetch_and_show "fAIr" \
         "hotosm/fAIr" "login_hanko" \
         "hotosm/fAIr" "main" \
-        "testlogin.fair.hotosm.org" "fair.hotosm.org"
+        "fair.testlogin.hotosm.org" "fair.hotosm.org"
 
     fetch_and_show "uMap" \
         "hotosm/umap" "login_hanko" \
         "" "" \
-        "testlogin.umap.hotosm.org" "—"
+        "umap.testlogin.hotosm.org" "—"
 
     fetch_and_show "Export Tool" \
         "hotosm/osm-export-tool" "login_hanko" \
         "" "" \
-        "testlogin.export.hotosm.org" "—"
+        "export.testlogin.hotosm.org" "—"
 
     fetch_and_show "Tasking Manager" \
         "" "" \

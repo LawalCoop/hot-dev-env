@@ -704,12 +704,16 @@ class DetailView(Static):
                 url = f"https://github.com/{repo}/actions/runs/{run_id}/job/{job_id}"
             else:
                 url = f"https://github.com/{repo}/actions/runs/{run_id}"
+            # Store URL for copy button
+            self._error_urls = getattr(self, '_error_urls', {})
+            self._error_urls[env_name] = url
+
             with Horizontal(classes="info-row"):
                 yield Static("Error:", classes="info-label")
                 yield Static(f"❌ Build failed", classes="info-value status-failure")
             with Horizontal(classes="info-row"):
                 yield Static("", classes="info-label")
-                yield Static(url, classes="info-value link")
+                yield Button.error("Copy error link", id=f"copy-error-url-{env_name}")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press."""
@@ -731,6 +735,14 @@ class DetailView(Static):
             if env.repo:
                 if copy_to_clipboard(f"https://github.com/{env.repo}"):
                     self.notify("Repository URL copied!")
+                else:
+                    self.notify("Install xclip: sudo apt install xclip", severity="warning")
+        elif btn_id.startswith("copy-error-url-"):
+            env_name = btn_id.replace("copy-error-url-", "")
+            error_urls = getattr(self, '_error_urls', {})
+            if env_name in error_urls:
+                if copy_to_clipboard(error_urls[env_name]):
+                    self.notify("Error link copied!")
                 else:
                     self.notify("Install xclip: sudo apt install xclip", severity="warning")
         elif btn_id.startswith("copy-error-"):

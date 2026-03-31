@@ -227,7 +227,7 @@ def get_apps() -> list[App]:
             icon="🚁",
             dev=Environment(
                 name="DEV",
-                url="testlogin.dronetm.hotosm.org",
+                url="dronetm.testlogin.hotosm.org",
                 repo="hotosm/drone-tm",
                 branch="login-hanko",
             ),
@@ -246,7 +246,7 @@ def get_apps() -> list[App]:
             icon="🤖",
             dev=Environment(
                 name="DEV",
-                url="testlogin.fair.hotosm.org",
+                url="fair.testlogin.hotosm.org",
                 repo="hotosm/fAIr",
                 branch="login_hanko",
             ),
@@ -269,7 +269,7 @@ def get_apps() -> list[App]:
                 repo="hotosm/umap",
                 branch="develop",
                 workflows=[
-                    Workflow(name="Deploy login-hanko to testlogin.umap.hotosm.org", display_name="testlogin", icon="🔐", url="testlogin.umap.hotosm.org", repo="hotosm/umap", branch="login_hanko"),
+                    Workflow(name="Deploy login-hanko to umap.testlogin.hotosm.org", display_name="testlogin", icon="🔐", url="umap.testlogin.hotosm.org", repo="hotosm/umap", branch="login_hanko"),
                     Workflow(name="Build & deploy develop to umap-dev.hotosm.org", display_name="umap-dev", icon="🌐", url="umap-dev.hotosm.org", repo="hotosm/umap", branch="develop"),
                 ],
             ),
@@ -288,7 +288,7 @@ def get_apps() -> list[App]:
             icon="📦",
             dev=Environment(
                 name="DEV",
-                url="testlogin.export.hotosm.org",
+                url="export.testlogin.hotosm.org",
                 repo="hotosm/osm-export-tool",
                 branch="login_hanko",
             ),
