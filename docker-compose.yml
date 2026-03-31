@@ -337,18 +337,18 @@ services:
   # Drone-TM Frontend (React + Vite)
   dronetm-frontend:
     build:
-      context: ../drone-tm/src/frontend
-      dockerfile: Dockerfile
+      context: ../drone-tm/src
+      dockerfile: frontend/Dockerfile
       target: development
     container_name: hotosm-dronetm-frontend
     volumes:
-      - ../drone-tm/src/frontend/src:/app/src
-      - ../drone-tm/src/frontend/public:/app/public
-      - ../drone-tm/src/frontend/vite.config.ts:/app/vite.config.ts
-      - ../drone-tm/src/frontend/index.html:/app/index.html
-      - ../drone-tm/src/frontend/components.json:/app/components.json
-      - ../drone-tm/src/frontend/postcss.config.js:/app/postcss.config.js
-      - ../drone-tm/src/frontend/tailwind.config.js:/app/tailwind.config.js
+      - ../drone-tm/src/frontend/src:/app/frontend/src
+      - ../drone-tm/src/frontend/public:/app/frontend/public
+      - ../drone-tm/src/frontend/vite.config.ts:/app/frontend/vite.config.ts
+      - ../drone-tm/src/frontend/index.html:/app/frontend/index.html
+      - ../drone-tm/src/frontend/components.json:/app/frontend/components.json
+      - ../drone-tm/src/frontend/postcss.config.js:/app/frontend/postcss.config.js
+      - ../drone-tm/src/frontend/tailwind.config.js:/app/frontend/tailwind.config.js
       - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
       - VITE_AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
