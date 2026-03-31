@@ -33,6 +33,14 @@ services:
       # HANKO_API_URL   – backend → Hanko (internal Docker network)
       # HANKO_PUBLIC_URL – browser → Hanko (via Traefik)
       # LOGIN_URL        – where the sign-in button redirects the browser
+      # FTM_DEV_PORT must be empty: the host .env may have FTM_DEV_PORT=7050
+      # (localhost dev), but field.hotosm.test runs behind Traefik on HTTPS —
+      # no port suffix in the redirect-after-login URL.
+      FTM_DEV_PORT: ""
       HANKO_API_URL: http://hanko:8000
       HANKO_PUBLIC_URL: https://login.hotosm.test
+      # JWT_ISSUER must match the `iss` claim in Hanko's tokens, which is the
+      # PUBLIC URL (https://login.hotosm.test), not the internal Docker URL.
+      # Without this, HANKO_API_URL is used as the issuer and validation fails.
+      JWT_ISSUER: https://login.hotosm.test
       LOGIN_URL: https://login.hotosm.test/app
