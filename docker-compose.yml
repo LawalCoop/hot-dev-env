@@ -993,7 +993,7 @@ services:
     platform: linux/amd64  # Required for Mac M1/M2/M3 compatibility
     build:
       context: ../osm-export-tool
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.dev
       target: development
     container_name: hotosm-export-tool-app
     volumes:
@@ -1069,7 +1069,7 @@ services:
     platform: linux/amd64  # Required for Mac M1/M2/M3 compatibility
     build:
       context: ../osm-export-tool
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.dev
       target: development
     container_name: hotosm-export-tool-worker
     volumes:
