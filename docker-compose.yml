@@ -650,7 +650,7 @@ services:
       - "traefik.http.routers.fair-frontend.rule=Host(`fair.hotosm.test`)"
       - "traefik.http.routers.fair-frontend.entrypoints=websecure"
       - "traefik.http.routers.fair-frontend.tls=true"
-      - "traefik.http.services.fair-frontend.loadbalancer.server.port=3000"
+      - "traefik.http.services.fair-frontend.loadbalancer.server.port=5173"
     depends_on:
       - fair-backend
 
