@@ -103,6 +103,7 @@ services:
       - /app/.venv
     environment:
       - DATABASE_URL=postgresql+asyncpg://portal:portal@portal-db:5432/portal
+      - PORTAL_BASE_URL=https://portal.hotosm.test
       - HANKO_API_URL=http://hanko:8000
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
