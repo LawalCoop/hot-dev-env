@@ -116,8 +116,8 @@ services:
       - BACKEND_CORS_ORIGINS=["https://portal.hotosm.test","https://login.hotosm.test","https://dronetm.hotosm.test"]
       - ADMIN_EMAILS=${ADMIN_EMAILS:-admin@hotosm.org}
       - DRONE_TM_BACKEND_URL=https://dronetm.hotosm.test/api
-      - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
-      - FAIR_VERIFY_SSL=false
+      - FAIR_API_BASE_URL=https://api-prod.fair.hotosm.org/api/v1
+      - FAIR_VERIFY_SSL=true
       - UMAP_BASE_URL=https://umap.hotosm.test
       - EXPORT_TOOL_API_BASE_URL=http://export-tool-app:8000/api
       - CHATMAP_API_BASE_URL=http://chatmap-backend:8000/v1
