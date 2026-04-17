@@ -217,6 +217,7 @@ services:
       - PORTAL_BACKEND_URL=http://portal-backend:8000
       - DRONETM_BACKEND_URL=http://dronetm-backend:8000
       - FAIR_BACKEND_URL=http://fair-backend:8000
+      - LOGIN_INTERNAL_API_KEY=${LOGIN_INTERNAL_API_KEY:-hotosm-dev-internal-key}
     networks:
       - hotosm
     labels:
@@ -374,8 +375,8 @@ services:
   # Drone-TM Backend (FastAPI)
   dronetm-backend:
     build:
-      context: ../drone-tm/src/backend
-      dockerfile: Dockerfile
+      context: ../drone-tm/src
+      dockerfile: backend/Dockerfile
       target: service
     container_name: hotosm-dronetm-backend
     volumes:
@@ -684,6 +685,8 @@ services:
       - CORS_ALLOWED_ORIGINS=https://fair.hotosm.test,https://login.hotosm.test
       - FRONTEND_URL=https://fair.hotosm.test
       - LOGIN_URL=https://login.hotosm.test
+      - LOGIN_BACKEND_URL=http://login-backend:8000
+      - LOGIN_INTERNAL_API_KEY=${LOGIN_INTERNAL_API_KEY:-hotosm-dev-internal-key}
       - ADMIN_EMAILS=hernangigena@gmail.com,justina@animus.com.ar,andreatchirillano@hotmail.com,emilio.mariscal@hotosm.org
     command: >
       sh -c "python manage.py migrate --noinput &&
