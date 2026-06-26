@@ -23,6 +23,12 @@ services:
       - "traefik.http.services.field-tm.loadbalancer.server.port=8080"
       - "traefik.docker.network=hotosm-dev"
 
+  central-db:
+    # 5434 (field-tm default) collides with the local Supabase PostgREST.
+    # !override replaces the ports list instead of appending to it.
+    ports: !override
+      - "5436:5432"
+
   backend:
     networks:
       - ftm-net
