@@ -101,11 +101,17 @@ services:
     volumes:
       - ../portal/backend:/app
       - /app/.venv
+      - ../login/auth-libs/python:/auth-libs-python  # For local auth-libs development
     environment:
       - DATABASE_URL=postgresql+asyncpg://portal:portal@portal-db:5432/portal
       - PORTAL_BASE_URL=https://portal.hotosm.test
       - HANKO_API_URL=http://hanko:8000
+      - LOGIN_API_URL=http://login-backend:8000
+      - LOGIN_GROUPS_ENABLED=true
       - JWT_ISSUER=https://login.hotosm.test
+      # auth-libs 0.2.9 (portal) validates aud; pin it to a value present in the
+      # JWT's audience list so tokens are accepted (login's 0.2.12 doesn't need this).
+      - JWT_AUDIENCE=https://portal.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
       - COOKIE_SECURE=true
@@ -116,12 +122,13 @@ services:
       - BACKEND_CORS_ORIGINS=["https://portal.hotosm.test","https://login.hotosm.test","https://dronetm.hotosm.test"]
       - ADMIN_EMAILS=${ADMIN_EMAILS:-admin@hotosm.org}
       - DRONE_TM_BACKEND_URL=https://dronetm.hotosm.test/api
-      - FAIR_API_BASE_URL=https://api-prod.fair.hotosm.org/api/v1
-      - FAIR_VERIFY_SSL=true
+      - FAIR_API_BASE_URL=https://fair.hotosm.test/api/v1
+      - FAIR_VERIFY_SSL=false
       - FAIR_USER_BASE_URL=https://fair.hotosm.test
       - UMAP_BASE_URL=https://umap.hotosm.test
       - EXPORT_TOOL_API_BASE_URL=http://export-tool-app:8000/api
-      - CHATMAP_BASE_URL=https://chatmap.hotosm.org
+      - CHATMAP_BASE_URL=https://chatmap.hotosm.test
+      - TASKING_MANAGER_API_URL=https://tm.hotosm.test/api/v2
     extra_hosts:
       - "dronetm.hotosm.test:host-gateway"
       - "fair.hotosm.test:host-gateway"
@@ -129,6 +136,8 @@ services:
       - "login.hotosm.test:host-gateway"
       - "umap.hotosm.test:host-gateway"
       - "tm.hotosm.test:host-gateway"
+      - "chatmap.hotosm.test:host-gateway"
+      - "openaerialmap.hotosm.test:host-gateway"
     command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     networks:
       - hotosm
@@ -205,11 +214,14 @@ services:
       - ../login/backend/app:/app/app
       - ../login/backend/.env:/app/.env
       - /app/.venv
+      - ../login/auth-libs/python:/auth-libs-python  # For local auth-libs development
     environment:
       - HANKO_API_URL=http://hanko:8000
       - JWT_ISSUER=https://login.hotosm.test
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       # COOKIE_DOMAIN not set - let browser handle it (works with both localhost and 127.0.0.1)
+      - FRONTEND_URL=https://login.hotosm.test
+      - BACKEND_URL=https://login.hotosm.test
       - OSM_CLIENT_ID=${OSM_CLIENT_ID}
       - OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}
       - OSM_REDIRECT_URI=https://login.hotosm.test/api/auth/osm/callback
@@ -219,6 +231,11 @@ services:
       - DRONETM_BACKEND_URL=http://dronetm-backend:8000
       - FAIR_BACKEND_URL=http://fair-backend:8000
       - LOGIN_INTERNAL_API_KEY=${LOGIN_INTERNAL_API_KEY:-hotosm-dev-internal-key}
+      # SMTP via Mailhog (capture-only, no real send)
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_FROM_ADDRESS=noreply@hotosm.test
+      - SMTP_STARTTLS=false
     networks:
       - hotosm
     labels:
@@ -348,6 +365,8 @@ services:
     volumes:
       - ../drone-tm/src/frontend/src:/app/frontend/src
       - ../drone-tm/src/frontend/public:/app/frontend/public
+      - ../drone-tm/src/frontend/project.inlang:/app/frontend/project.inlang
+      - ../drone-tm/src/frontend/messages:/app/frontend/messages
       - ../drone-tm/src/frontend/vite.config.ts:/app/frontend/vite.config.ts
       - ../drone-tm/src/frontend/index.html:/app/frontend/index.html
       - ../drone-tm/src/frontend/components.json:/app/frontend/components.json
@@ -382,6 +401,7 @@ services:
     container_name: hotosm-dronetm-backend
     volumes:
       - ../drone-tm/src/backend/app:/project/src/backend/app
+      - ../login/auth-libs/python:/auth-libs-python  # For local auth-libs development
     environment:
       - DATABASE_URL=postgresql+asyncpg://dtm:dtm@dronetm-db:5432/dtm_db
       - POSTGRES_HOST=dronetm-db
@@ -571,6 +591,7 @@ services:
     volumes:
       - ../openaerialmap/backend/stac-api:/app
       - /app/.venv
+      - ../login/auth-libs/python:/auth-libs-python  # For local auth-libs development
     environment:
       # Database configuration (stac-fastapi-pgstac format)
       - POSTGRES_USER=postgres
@@ -667,6 +688,7 @@ services:
     volumes:
       - ../fAIr/backend:/app
       - /app/.venv  # Preserve .venv from build
+      - ../login/auth-libs/python:/auth-libs-python  # For local auth-libs development
     environment:
       - DATABASE_URL=postgis://fair:fair@fair-db:5432/fair
       - AUTH_PROVIDER=${AUTH_PROVIDER:-hanko}
