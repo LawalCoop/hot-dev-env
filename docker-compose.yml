@@ -72,6 +72,7 @@ services:
       - ../portal/frontend:/app
       - /app/node_modules
       - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
+      - ../ui:/hotosm-ui-src  # For local @hotosm/ui development
     environment:
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_API_URL=https://portal.hotosm.test/api

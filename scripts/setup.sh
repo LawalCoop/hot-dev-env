@@ -52,6 +52,7 @@ declare -A REPO_URLS=(
     ["raw-data-api"]="https://github.com/hotosm/raw-data-api.git"
     ["tasking-manager"]="https://github.com/hotosm/tasking-manager.git"
     ["field-tm"]="https://github.com/hotosm/field-tm.git"
+    ["ui"]="https://github.com/hotosm/ui.git"
 )
 
 declare -A REPO_URLS_SSH=(
@@ -67,6 +68,7 @@ declare -A REPO_URLS_SSH=(
     ["raw-data-api"]="git@github.com:hotosm/raw-data-api.git"
     ["tasking-manager"]="git@github.com:hotosm/tasking-manager.git"
     ["field-tm"]="git@github.com:hotosm/field-tm.git"
+    ["ui"]="git@github.com:hotosm/ui.git"
 )
 
 if [[ ! -d "../portal" ]]; then
@@ -115,6 +117,10 @@ fi
 
 if [[ ! -d "../field-tm" ]]; then
     MISSING_REPOS+=("field-tm")
+fi
+
+if [[ ! -d "../ui" ]]; then
+    MISSING_REPOS+=("ui")
 fi
 
 if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
@@ -236,7 +242,7 @@ if [[ ${#MISSING_REPOS[@]} -gt 0 ]]; then
         exit 1
     fi
 else
-    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap, osm-export-tool, raw-data-api, tasking-manager, field-tm)"
+    echo "  ✓ All repositories present (portal, drone-tm, auth-libs, login, openaerialmap, fAIr, umap, chatmap, osm-export-tool, raw-data-api, tasking-manager, field-tm, ui)"
     echo ""
 
     # Ensure portal and login repos are on develop branch

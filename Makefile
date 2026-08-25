@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -46,6 +46,10 @@ help:
 	@echo "Auth-libs Development:"
 	@echo "  make link-auth-libs   - Link local auth-libs for development"
 	@echo "  make unlink-auth-libs - Unlink and use npm versions"
+	@echo ""
+	@echo "@hotosm/ui Development:"
+	@echo "  make link-hotosm-ui   - Link local @hotosm/ui for development"
+	@echo "  make unlink-hotosm-ui - Unlink local @hotosm/ui"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make auth-libs      - Update auth-libs in all projects"
@@ -101,6 +105,9 @@ install:
 	@echo ""
 	@echo "→ Portal frontend..."
 	@cd ../portal/frontend && pnpm install
+	@echo ""
+	@echo "→ @hotosm/ui..."
+	@cd ../ui && pnpm install
 	@echo ""
 	@echo "→ Portal backend..."
 	@cd ../portal/backend && uv sync --all-extras
@@ -401,6 +408,45 @@ unlink-auth-libs:
 	@docker compose restart portal-frontend login-frontend dronetm-frontend fair-frontend oam-frontend 2>/dev/null || true
 	@echo ""
 	@echo "Done! npm versions restored and containers restarted."
+
+# Note: the first time you run this (right after adding the /hotosm-ui-src mount
+# to docker-compose.yml) the container must be recreated so the new volume is
+# attached: docker compose up -d --force-recreate portal-frontend
+# A plain restart does NOT pick up a newly added mount.
+link-hotosm-ui:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Linking local @hotosm/ui for development"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@for container in hotosm-portal-frontend; do \
+		echo "  → $$container"; \
+		docker exec $$container sh -c "rm -rf /app/node_modules/@hotosm/ui && ln -s /hotosm-ui-src /app/node_modules/@hotosm/ui && rm -rf /app/node_modules/.vite" 2>/dev/null && echo "    ✓ linked" || echo "    (not running)"; \
+	done
+	@echo ""
+	@echo "Restarting containers to load linked version..."
+	@docker compose restart portal-frontend 2>/dev/null || true
+	@echo ""
+	@echo "Done! Now you can:"
+	@echo "  1. Edit code in ../ui/src/"
+	@echo "  2. Build: cd ../ui && pnpm build"
+	@echo "  3. Refresh browser"
+
+unlink-hotosm-ui:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Unlinking @hotosm/ui"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@for container in hotosm-portal-frontend; do \
+		echo "  → $$container"; \
+		docker exec $$container sh -c "rm -rf /app/node_modules/@hotosm/ui /app/node_modules/.vite" 2>/dev/null && echo "    ✓ unlinked" || echo "    (not running)"; \
+	done
+	@echo ""
+	@echo "Restarting containers to clear Vite memory cache..."
+	@docker compose restart portal-frontend 2>/dev/null || true
+	@echo ""
+	@echo "Note: unlike auth-libs, @hotosm/ui is not (yet) a package.json dependency"
+	@echo "of portal, so there is no npm version to restore - this only removes the"
+	@echo "local symlink."
 
 clean:
 	@echo "Cleaning all containers and volumes..."
