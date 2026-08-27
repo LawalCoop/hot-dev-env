@@ -1,6 +1,9 @@
 # Environment files
 .env
 
+# Local overrides (not for version control)
+docker-compose.override.yml
+
 # Docker volumes
 *.log
 
