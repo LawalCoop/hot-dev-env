@@ -106,6 +106,8 @@ services:
       - PORTAL_BASE_URL=https://portal.hotosm.test
       - HANKO_API_URL=http://hanko:8000
       - JWT_ISSUER=https://login.hotosm.test
+      - LOGIN_GROUPS_ENABLED=true
+      - LOGIN_API_URL=http://login-backend:8000
       - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
       - COOKIE_DOMAIN=.hotosm.test
       - COOKIE_SECURE=true
