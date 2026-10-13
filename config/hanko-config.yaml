@@ -1,20 +1,24 @@
 server:
   public:
     address: ":8000"
-    cors:
-      allow_origins:
-        - "https://portal.hotosm.test"
-        - "https://login.hotosm.test"
-        - "https://dronetm.hotosm.test"
-        - "https://fair.hotosm.test"
-        - "https://openaerialmap.hotosm.test"
-        - "https://chatmap.hotosm.test"
-        - "https://umap.hotosm.test"
-        - "https://export-tool.hotosm.test"
-        - "https://field.hotosm.test"
-        - "http://field.hotosm.test:7050"
-      allow_credentials: true
-      unsafe_wildcard_origin_allowed: true
+
+# `cors` is a top-level key (TenantConfig.Cors), not nested under server.public —
+# Hanko v3's config struct has no Cors field on ServerSettings, so a
+# server.public.cors block is silently ignored and no Access-Control-Allow-*
+# headers are ever sent, breaking cross-subdomain session checks.
+cors:
+  allow_origins:
+    - "https://portal.hotosm.test"
+    - "https://login.hotosm.test"
+    - "https://dronetm.hotosm.test"
+    - "https://fair.hotosm.test"
+    - "https://openaerialmap.hotosm.test"
+    - "https://chatmap.hotosm.test"
+    - "https://umap.hotosm.test"
+    - "https://export-tool.hotosm.test"
+    - "https://field.hotosm.test"
+    - "http://field.hotosm.test:7050"
+  unsafe_wildcard_origin_allowed: true
 
 database:
   database: hanko
