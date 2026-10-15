@@ -10,6 +10,10 @@ export COMPOSE_DOCKER_CLI_BUILD := 1
 # Reusable compose command for the Field-TM project, kept here to avoid repetition
 FIELD_TM_COMPOSE := cd ../field-tm && docker compose -f compose.yaml -f $(CURDIR)/docker-compose.field-tm.yml --env-file .env -p field-tm
 
+# curl does not read the macOS Keychain, so health checks pass mkcert's CA
+# explicitly; without mkcert they skip verification.
+CURL_CHECK := curl -f -s $(shell f="$$(mkcert -CAROOT 2>/dev/null)/rootCA.pem"; [ -f "$$f" ] && printf -- '--cacert "%s"' "$$f" || printf -- '-k')
+
 # Default target
 help:
 	@echo "════════════════════════════════════════════════"
@@ -246,7 +250,7 @@ dev-dronetm:
 
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
-	docker compose up oam-frontend oam-backend oam-db hanko hanko-db mailhog traefik --build
+	docker compose up oam-frontend oam-backend oam-db login-frontend login-backend hanko hanko-db mailhog traefik --build
 
 dev-fair:
 	@echo "Starting fAIr services..."
@@ -326,44 +330,44 @@ health:
 	@echo "════════════════════════════════════════════════"
 	@echo ""
 	@echo "Portal:"
-	@curl -f -s https://portal.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://portal.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://portal.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://portal.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "Drone-TM:"
-	@curl -f -s https://dronetm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://dronetm.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://dronetm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://dronetm.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "OpenAerialMap:"
-	@curl -f -s https://openaerialmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://openaerialmap.hotosm.test/api > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://openaerialmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://openaerialmap.hotosm.test/api > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "fAIr:"
-	@curl -f -s https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://fair.hotosm.test/api/v1/ > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://fair.hotosm.test/api/v1/ > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "uMap:"
-	@curl -f -s https://umap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://umap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@echo ""
 	@echo "ChatMap:"
-	@curl -f -s https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@echo ""
 	@echo "Export Tool:"
-	@curl -f -s https://export-tool.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
+	@$(CURL_CHECK) https://export-tool.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
 	@echo ""
 	@echo "Raw Data API:"
-	@curl -f -s https://raw-data-api.hotosm.test/v1 > /dev/null && echo "  ✓ API" || echo "  ✗ API"
+	@$(CURL_CHECK) https://raw-data-api.hotosm.test/v1 > /dev/null && echo "  ✓ API" || echo "  ✗ API"
 	@echo ""
 	@echo "Tasking Manager:"
-	@curl -f -s -k https://tm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s -k https://tm.hotosm.test/api/docs > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://tm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://tm.hotosm.test/api/docs > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "Field-TM:"
-	@curl -f -s https://field.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
+	@$(CURL_CHECK) https://field.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
 	@echo ""
 	@echo "Shared:"
-	@curl -f -s https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
-	@curl -f -s https://minio.hotosm.test > /dev/null && echo "  ✓ MinIO Console" || echo "  ✗ MinIO Console"
-	@curl -f -s https://traefik.hotosm.test > /dev/null && echo "  ✓ Traefik Dashboard" || echo "  ✗ Traefik Dashboard"
+	@$(CURL_CHECK) https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
+	@$(CURL_CHECK) https://minio.hotosm.test > /dev/null && echo "  ✓ MinIO Console" || echo "  ✗ MinIO Console"
+	@$(CURL_CHECK) https://traefik.hotosm.test > /dev/null && echo "  ✓ Traefik Dashboard" || echo "  ✗ Traefik Dashboard"
 	@echo ""
 
 # ==================

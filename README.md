@@ -10,6 +10,7 @@ This repo orchestrates multiple HOTOSM applications:
 - **Drone-TM** - Drone Tasking Manager
 - **fAIr** - AI-assisted mapping tool
 - **ChatMap** - AI-powered map data extraction from chat
+- **OpenAerialMap** - Open imagery catalogue (frontend + STAC API)
 
 All services run locally with subdomain routing (just like production):
 ```
@@ -17,6 +18,7 @@ https://portal.hotosm.test        → Portal
 https://dronetm.hotosm.test       → Drone-TM
 https://fair.hotosm.test          → fAIr
 https://chatmap.hotosm.test       → ChatMap
+https://openaerialmap.hotosm.test → OpenAerialMap
 https://login.hotosm.test         → Hanko SSO
 https://minio.hotosm.test         → MinIO Console
 https://traefik.hotosm.test       → Traefik Dashboard
@@ -54,7 +56,7 @@ mkdir -p /c/dev/HOT && cd /c/dev/HOT
 Then clone hot-dev-env inside it:
 
 ```bash
-git clone https://github.com/hotosm/hot-dev-env.git
+git clone https://github.com/LawalCoop/hot-dev-env.git
 cd hot-dev-env
 ```
 
@@ -142,6 +144,21 @@ Press `Ctrl+C` to stop all services.
 - Requires **Bash 4+** (see Prerequisites section)
 - mkcert installs automatically via Homebrew
 - hosts entries added via `sudo` command provided by setup script
+- **Keep the repos out of iCloud Drive.** Syncing deletes and resurrects
+  files, which breaks git checkouts and Docker bind mounts. Use a plain folder
+  such as `~/Projects/HOT`.
+- **Docker disk space.** `make dev` builds and runs ~40 containers, each with
+  its own database. Check Docker Desktop → Settings → Resources → Advanced →
+  *Virtual disk limit* and `docker system df`; `docker builder prune` frees the
+  build cache. Raise the limit only while macOS itself has room to spare.
+- **Apple Silicon.** Images without an ARM64 build run under emulation
+  (`platform: linux/amd64` in the compose files), so they start more slowly.
+- **Prefer per-app targets** (`make dev-oam`, `make dev-portal`, …).
+  Docker Desktop cannot mount a file inside an already mounted folder, which
+  stops `make dev` at Export Tool; see Troubleshooting.
+- **curl does not trust mkcert.** Browsers read the macOS Keychain; curl does
+  not. Use `curl --cacert "$(mkcert -CAROOT)/rootCA.pem" https://…`
+  (`make health` already does).
 
 ### Linux
 - All automated - just run `make setup`
@@ -327,6 +344,23 @@ cd backend && python manage.py runserver  # Backend on :8000
 docker compose restart fair-frontend
 ```
 
+### Working on OpenAerialMap
+
+```bash
+# Frontend, STAC API, Login UI, Hanko and Mailhog
+make dev-oam
+```
+
+- Frontend: <https://openaerialmap.hotosm.test> (Vite with hot reload, mounted
+  from `../openaerialmap/frontend`)
+- STAC API: <https://openaerialmap.hotosm.test/api>
+- `VITE_HANKO_URL` points the header's sign-in at the local Hanko. "Log in"
+  opens <https://login.hotosm.test/app>, so `login-frontend` and `login-backend`
+  must be running; `make dev-oam` starts them.
+- To create an account, read the verification code at <https://mail.hotosm.test>.
+- Map tiles, footprints and imagery come from production, since the local
+  catalogue starts empty.
+
 ### Updating Auth-libs
 
 Auth-libs lives inside the login repo at `login/auth-libs/`. When you make changes:
@@ -421,6 +455,40 @@ make dev
    docker ps | grep traefik
    # View dashboard: https://traefik.hotosm.test
    ```
+
+### Browser rejects the certificate
+
+If the certificate is `TRAEFIK DEFAULT CERT`, Traefik is not reading
+`traefik-tls.yml`. Usually that path is an empty directory Docker created
+when the file was missing:
+
+```bash
+ls -ld traefik-tls.yml          # a directory instead of a file?
+rmdir traefik-tls.yml && git checkout -- traefik-tls.yml
+docker compose up -d --force-recreate traefik
+```
+
+See [docs/HTTPS_SETUP.md](docs/HTTPS_SETUP.md) for the rest.
+
+### Databases fail with "No space left on device"
+
+Docker's virtual disk is full, not your machine's:
+
+```bash
+docker system df        # what is using the space
+docker builder prune    # build cache, rebuilt on demand
+```
+
+Avoid `docker system prune --volumes`: it deletes every project's databases.
+On macOS, see the Docker disk notes under Platform-Specific Notes.
+
+### `make dev` stops with a mount error (macOS)
+
+`make dev` aborts with `make mountpoint ... file exists` or `mountpoint ...
+is outside of rootfs` for `export-tool-app`. Docker Desktop cannot bind a
+file into a folder that is itself a bind mount. Containers started before the
+error keep running; start the app you need with its own target
+(`make dev-oam`, `make dev-portal`, …), or `docker compose up -d <service>`.
 
 ### Portal can't connect to Drone-TM
 
