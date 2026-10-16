@@ -19,6 +19,7 @@ https://dronetm.hotosm.test       → Drone-TM
 https://fair.hotosm.test          → fAIr
 https://chatmap.hotosm.test       → ChatMap
 https://openaerialmap.hotosm.test → OpenAerialMap
+https://oam-upload.hotosm.test    → OpenAerialMap Uploader
 https://login.hotosm.test         → Hanko SSO
 https://minio.hotosm.test         → MinIO Console
 https://traefik.hotosm.test       → Traefik Dashboard
@@ -347,13 +348,19 @@ docker compose restart fair-frontend
 ### Working on OpenAerialMap
 
 ```bash
-# Frontend, STAC API, Login UI, Hanko and Mailhog
+# Frontend, STAC API, uploader, Login UI, Hanko and Mailhog
 make dev-oam
 ```
 
 - Frontend: <https://openaerialmap.hotosm.test> (Vite with hot reload, mounted
   from `../openaerialmap/frontend`)
 - STAC API: <https://openaerialmap.hotosm.test/api>
+- Uploader: <https://oam-upload.hotosm.test>, signed in with the local Hanko
+  (`AUTH_PROVIDER=hotosm`). `app/` is mounted from
+  `../openaerialmap/backend/uploader-api` and reloads on change. Uploads go to
+  `oam-rustfs` (<https://oam-s3.hotosm.test>) and stay unprocessed: the
+  processing pipeline runs on Argo, which only the OAM repo's
+  `just test dev-cluster` sets up.
 - `VITE_HANKO_URL` points the header's sign-in at the local Hanko. "Log in"
   opens <https://login.hotosm.test/app>, so `login-frontend` and `login-backend`
   must be running; `make dev-oam` starts them.
