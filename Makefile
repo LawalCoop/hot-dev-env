@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status dev-oam-pipeline oam-cluster oam-pipeline-images oam-cluster-destroy
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -9,6 +9,10 @@ export COMPOSE_DOCKER_CLI_BUILD := 1
 
 # Reusable compose command for the Field-TM project, kept here to avoid repetition
 FIELD_TM_COMPOSE := cd ../field-tm && docker compose -f compose.yaml -f $(CURDIR)/docker-compose.field-tm.yml --env-file .env -p field-tm
+
+# OAM with upload processing (Argo on OAM's local Talos cluster)
+OAM_PIPELINE_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.oam-pipeline.yml
+OAM_SERVICES := oam-frontend oam-backend oam-db oam-stac-browser oam-uploader-api oam-uploader-migrations oam-uploader-db oam-rustfs oam-rustfs-init login-frontend login-backend hanko hanko-db mailhog traefik
 
 # curl does not read the macOS Keychain, so health checks pass mkcert's CA
 # explicitly; without mkcert they skip verification.
@@ -31,6 +35,7 @@ help:
 	@echo "  make dev-login      - Start Login only (requires frontend/backend)"
 	@echo "  make dev-dronetm    - Start Drone-TM only"
 	@echo "  make dev-oam        - Start OpenAerialMap only"
+	@echo "  make dev-oam-pipeline - OpenAerialMap with upload processing"
 	@echo "  make dev-fair       - Start fAIr only"
 	@echo "  make dev-umap       - Start uMap only"
 	@echo "  make dev-chatmap    - Start ChatMap only"
@@ -74,6 +79,7 @@ help:
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  OAM Uploader:    https://oam-upload.hotosm.test"
+	@echo "  OAM Browser:     https://oam-browser.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  Tasking Manager:     https://tm.hotosm.test"
@@ -216,6 +222,7 @@ dev:
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
 	@echo "  OAM Uploader:    https://oam-upload.hotosm.test"
+	@echo "  OAM Browser:     https://oam-browser.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  Tasking Mgr:     https://tm.hotosm.test"
@@ -252,7 +259,27 @@ dev-dronetm:
 
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
-	docker compose up oam-frontend oam-backend oam-db oam-uploader-api oam-uploader-migrations oam-uploader-db oam-rustfs oam-rustfs-init login-frontend login-backend hanko hanko-db mailhog traefik --build
+	docker compose up $(OAM_SERVICES) --build
+
+# Same services, with uploads processed by OAM's real pipeline. Creates (or
+# reuses) OAM's local Talos + Argo cluster first; needs `just` and ../openaerialmap.
+dev-oam-pipeline: oam-cluster
+	@echo "Starting OpenAerialMap services with upload processing..."
+	$(OAM_PIPELINE_COMPOSE) up $(OAM_SERVICES) --build
+
+oam-cluster:
+	@./scripts/oam-cluster.sh
+
+# Build the pipeline images from ../openaerialmap so workflows run your local
+# changes. Without this, the cluster pulls the published images from ghcr.io.
+oam-pipeline-images:
+	cd ../openaerialmap && just test _build-pipeline-images
+
+# Frees the cluster's memory. Uploads stop being processed until oam-cluster.
+oam-cluster-destroy:
+	cd ../openaerialmap && PATH="$(CURDIR)/.bin:$$PATH" just k8s cluster-destroy
+	@# Emptied, not deleted: a running uploader keeps reading a deleted file.
+	@if [ -f .oam-kubeconfig ]; then : > .oam-kubeconfig; fi
 
 dev-fair:
 	@echo "Starting fAIr services..."
@@ -343,6 +370,7 @@ health:
 	@$(CURL_CHECK) https://openaerialmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@$(CURL_CHECK) https://openaerialmap.hotosm.test/api > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@$(CURL_CHECK) https://oam-upload.hotosm.test/__lbheartbeat__ > /dev/null && echo "  ✓ Uploader" || echo "  ✗ Uploader"
+	@$(CURL_CHECK) https://oam-browser.hotosm.test > /dev/null && echo "  ✓ STAC Browser" || echo "  ✗ STAC Browser"
 	@echo ""
 	@echo "fAIr:"
 	@$(CURL_CHECK) https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"

@@ -1,0 +1,30 @@
+# Runs OAM uploads through the real processing pipeline (Argo on local Talos).
+# Used by `make dev-oam-pipeline` on top of docker-compose.yml, after
+# `make oam-cluster` has created the cluster and written .oam-kubeconfig.
+#
+# Workflow pods run inside the cluster and cannot resolve compose service
+# names. They reach rustfs and the uploader through ports published on the
+# host, via the Talos network gateway (10.5.0.1, the same address OAM's
+# `just k8s` uses for its registry mirror). This is how OAM's own
+# `just test dev-cluster` connects them.
+
+services:
+  oam-uploader-api:
+    ports:
+      - "8091:8080"
+    environment:
+      - ARGO_ENABLED=true
+      - ARGO_NAMESPACE=argo
+      # Workflow pods use these two addresses.
+      - S3_ENDPOINT=http://${OAM_CLUSTER_GATEWAY:-10.5.0.1}:9000
+      - WF_CALLBACK_URL=http://${OAM_CLUSTER_GATEWAY:-10.5.0.1}:8091
+    volumes:
+      - ./.oam-kubeconfig:/root/.kube/config:ro
+    # .oam-kubeconfig reaches the cluster API through the host. Docker Desktop
+    # defines this name already; Linux needs it mapped.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  oam-rustfs:
+    ports:
+      - "9000:9000"
