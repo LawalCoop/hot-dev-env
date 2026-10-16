@@ -55,6 +55,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`localhost`,`127.0.0.1`) && PathPrefix(`/traefik`)"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      # Dashboard at https://traefik.hotosm.test, as listed in the README.
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.hotosm.test`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls=true"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
 
   # ==========================================
   # Portal - Authentication & SSO Portal
@@ -153,6 +158,7 @@ services:
   # Portal Database
   portal-db:
     image: postgis/postgis:16-3.4
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-portal-db
     environment:
       - POSTGRES_USER=portal
@@ -332,6 +338,7 @@ services:
   # Mailhog - Email catcher for development (captures all emails without sending)
   mailhog:
     image: mailhog/mailhog:latest
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-mailhog
     networks:
       - hotosm
@@ -387,8 +394,8 @@ services:
   # Drone-TM Backend (FastAPI)
   dronetm-backend:
     build:
-      context: ../drone-tm/src
-      dockerfile: backend/Dockerfile
+      context: ../drone-tm/src/backend
+      dockerfile: Dockerfile
       target: service
     container_name: hotosm-dronetm-backend
     volumes:
@@ -440,6 +447,7 @@ services:
   # Drone-TM Database
   dronetm-db:
     image: postgis/postgis:16-3.4-alpine
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-dronetm-db
     environment:
       - POSTGRES_USER=dtm
@@ -552,19 +560,21 @@ services:
     build:
       context: ../openaerialmap/frontend
       dockerfile: Dockerfile
-      target: development
+      target: base  # OAM Dockerfile has no dev stage; run Vite directly
     container_name: hotosm-oam-frontend
+    # Keep pnpm's store in the node_modules volume; by default it lands in
+    # the mounted repo as frontend/.pnpm-store.
+    command: sh -c "npm install -g pnpm@10.33.2 && pnpm install --store-dir /app/node_modules/.pnpm-store --config.confirm-modules-purge=false && pnpm dev --port 9000"
     volumes:
       - ../openaerialmap/frontend:/app
       - /app/node_modules
       - ../login/auth-libs/web-component:/auth-libs-src  # For local auth-libs development
     environment:
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=openaerialmap.hotosm.test
+      # Runtime keys are listed in openaerialmap/frontend/src/runtimeConfig.ts.
+      # Unset ones (STAC, TiTiler, PMTiles) default to production.
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_API_URL=https://openaerialmap.hotosm.test/api
-      - VITE_STAC_API_URL=https://openaerialmap.hotosm.test
-      - VITE_STAC_API_PATHNAME=api
-      - VITE_STAC_TILER_PATHNAME=api/raster
-      - VITE_STAC_ITEMS_LIMIT=40
     networks:
       - hotosm
     labels:
@@ -628,6 +638,8 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
+    ports:
+      - "127.0.0.1:5437:5432"  # Host access for DB clients (5432 often taken by local Postgres)
     volumes:
       - oam-db-data:/var/lib/postgresql/data
     networks:
@@ -749,6 +761,7 @@ services:
   # (see fair-db-init) now that fAIr dropped its separate Celery/Redis broker.
   fair-db:
     image: postgis/postgis:16-3.4
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-fair-db
     environment:
       - POSTGRES_USER=fair
@@ -768,6 +781,7 @@ services:
   # instance, multiple databases - mirrors fAIr's own db-init service).
   fair-db-init:
     image: postgis/postgis:16-3.4
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-fair-db-init
     depends_on:
       fair-db:
@@ -796,6 +810,7 @@ services:
   # containers at http://fair-zenml:8080.
   fair-zenml:
     image: ghcr.io/hotosm/fair/zenml-postgres:0.94.2
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-fair-zenml
     restart: on-failure
     depends_on:
@@ -829,6 +844,7 @@ services:
 
   fair-stac:
     image: ghcr.io/stac-utils/stac-fastapi-pgstac:5.0.2
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-fair-stac
     depends_on:
       fair-stac-migrate:
@@ -1020,6 +1036,7 @@ services:
   # ChatMap Database (PostgreSQL + PostGIS)
   chatmap-db:
     image: postgis/postgis:16-3.4-alpine
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-chatmap-db
     environment:
       - POSTGRES_USER=chatmap
@@ -1227,6 +1244,7 @@ services:
 
   raw-data-api-db:
     image: postgis/postgis:16-3.4-alpine
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-raw-data-api-db
     environment:
       - POSTGRES_USER=postgres
@@ -1327,6 +1345,7 @@ services:
   # TM Database (PostGIS)
   tm-db:
     image: postgis/postgis:14-3.4
+    platform: linux/amd64  # No ARM64 image available
     container_name: hotosm-tm-db
     environment:
       - POSTGRES_USER=tm

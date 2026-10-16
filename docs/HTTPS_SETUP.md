@@ -67,18 +67,20 @@ The certificate covers:
 
 ### 4. Configure Traefik
 
-The `traefik-tls.yml` file is already configured to use these certificates:
+`traefik-tls.yml` is committed and already points at these certificates.
+`docker-compose.yml` mounts `./certs` at `/etc/traefik/certs`, so the paths are
+the ones inside the container:
 
 ```yaml
 tls:
   certificates:
-    - certFile: /certs/localhost.crt
-      keyFile: /certs/localhost.key
+    - certFile: /etc/traefik/certs/localhost.crt
+      keyFile: /etc/traefik/certs/localhost.key
   stores:
     default:
       defaultCertificate:
-        certFile: /certs/localhost.crt
-        keyFile: /certs/localhost.key
+        certFile: /etc/traefik/certs/localhost.crt
+        keyFile: /etc/traefik/certs/localhost.key
 ```
 
 ### 5. Update /etc/hosts (if using .test domains)
@@ -98,7 +100,7 @@ Add:
 
 Or use the provided script:
 ```bash
-./add-local-domains.sh
+./scripts/add-hosts.sh
 ```
 
 ### 6. Start Services
@@ -221,7 +223,17 @@ make restart
 2. **Check Traefik config:**
    ```bash
    cat traefik-tls.yml
-   # Verify paths match certificate locations
+   # Paths must start with /etc/traefik/certs/
+   ```
+
+   If `traefik-tls.yml` is an empty **directory**, Docker created it because
+   the file was missing when Traefik first started (older checkouts ignored
+   it). Traefik then serves its own `TRAEFIK DEFAULT CERT` and browsers reject
+   it. Remove the directory, restore the file and recreate Traefik:
+   ```bash
+   rmdir traefik-tls.yml
+   git checkout -- traefik-tls.yml
+   docker compose up -d --force-recreate traefik
    ```
 
 3. **Check Traefik logs:**
@@ -232,7 +244,7 @@ make restart
 4. **Check volume mount:**
    ```bash
    docker compose config | grep -A 5 "traefik:" | grep -i volume
-   # Should mount ./certs:/certs
+   # Should mount ./certs at /etc/traefik/certs
    ```
 
 ### HTTP still works, HTTPS doesn't

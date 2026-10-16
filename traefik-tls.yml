@@ -1,0 +1,12 @@
+# Traefik TLS config, mounted at /etc/traefik/dynamic/tls.yml.
+# Paths are inside the container: docker-compose.yml mounts ./certs at
+# /etc/traefik/certs. The certificates themselves come from `make setup-https`.
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/localhost.crt
+      keyFile: /etc/traefik/certs/localhost.key
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/localhost.crt
+        keyFile: /etc/traefik/certs/localhost.key
