@@ -23,6 +23,7 @@ HOSTS_ENTRIES=(
     "127.0.0.1 openaerialmap.hotosm.test"
     "127.0.0.1 oam-upload.hotosm.test"
     "127.0.0.1 oam-s3.hotosm.test"
+    "127.0.0.1 oam-browser.hotosm.test"
     "127.0.0.1 umap.hotosm.test"
     "127.0.0.1 chatmap.hotosm.test"
     "127.0.0.1 export-tool.hotosm.test"

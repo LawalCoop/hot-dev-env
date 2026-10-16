@@ -670,6 +670,10 @@ services:
       - OAM_FRONTEND_URL=https://openaerialmap.hotosm.test
       - OAM_API_URL=https://openaerialmap.hotosm.test/api
       - STAC_URL=https://openaerialmap.hotosm.test/api
+      # "View" links open items in oam-stac-browser. The catalogue lives at /api
+      # here, not at /stac as in production.
+      - STAC_PUBLIC_URL=https://openaerialmap.hotosm.test/api
+      - STAC_BROWSER_URL=https://oam-browser.hotosm.test
       - ARGO_ENABLED=false
       # Uploader database
       - DB_HOST=oam-uploader-db
@@ -717,6 +721,24 @@ services:
         condition: service_healthy
       hanko:
         condition: service_started
+
+  # STAC Browser with OAM's item links, for the uploader's "View" link. Same
+  # image production serves at api.imagery.hotosm.org/browser.
+  oam-stac-browser:
+    build:
+      context: ../openaerialmap/backend/stac-browser
+    container_name: hotosm-oam-stac-browser
+    environment:
+      - SB_catalogUrl=https://openaerialmap.hotosm.test/api
+      - SB_catalogTitle=OpenAerialMap (local)
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oam-browser.rule=Host(`oam-browser.hotosm.test`)"
+      - "traefik.http.routers.oam-browser.entrypoints=websecure"
+      - "traefik.http.routers.oam-browser.tls=true"
+      - "traefik.http.services.oam-browser.loadbalancer.server.port=8080"
 
   # One-shot schema and migration runner for the uploader database.
   oam-uploader-migrations:

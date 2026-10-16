@@ -20,6 +20,7 @@ https://fair.hotosm.test          → fAIr
 https://chatmap.hotosm.test       → ChatMap
 https://openaerialmap.hotosm.test → OpenAerialMap
 https://oam-upload.hotosm.test    → OpenAerialMap Uploader
+https://oam-browser.hotosm.test   → OpenAerialMap STAC Browser
 https://login.hotosm.test         → Hanko SSO
 https://minio.hotosm.test         → MinIO Console
 https://traefik.hotosm.test       → Traefik Dashboard
@@ -358,15 +359,121 @@ make dev-oam
 - Uploader: <https://oam-upload.hotosm.test>, signed in with the local Hanko
   (`AUTH_PROVIDER=hotosm`). `app/` is mounted from
   `../openaerialmap/backend/uploader-api` and reloads on change. Uploads go to
-  `oam-rustfs` (<https://oam-s3.hotosm.test>) and stay unprocessed: the
-  processing pipeline runs on Argo, which only the OAM repo's
-  `just test dev-cluster` sets up.
+  `oam-rustfs` (<https://oam-s3.hotosm.test>) and stay unprocessed; to process
+  them, see [Processing OAM uploads](#processing-oam-uploads).
+- STAC Browser: <https://oam-browser.hotosm.test>, the uploader's "View" link
+  for a processed upload. Its "Open in iD", "Open in JOSM" and tile links need
+  TiTiler, which hot-dev-env does not run, so they do not work locally.
 - `VITE_HANKO_URL` points the header's sign-in at the local Hanko. "Log in"
   opens <https://login.hotosm.test/app>, so `login-frontend` and `login-backend`
   must be running; `make dev-oam` starts them.
 - To create an account, read the verification code at <https://mail.hotosm.test>.
 - Map tiles, footprints and imagery come from production, since the local
   catalogue starts empty.
+
+#### Processing OAM uploads
+
+`make dev-oam` stores uploads but does not process them. In production each
+upload is turned into a catalogue item by a pipeline of five steps (fetch,
+validate, convert, metadata, register) that runs on Kubernetes with Argo
+Workflows. `make dev-oam-pipeline` runs that same pipeline locally, so you can
+test the whole flow: sign in, upload, wait for "Succeeded", and find the item
+at <https://openaerialmap.hotosm.test/api>.
+
+The Kubernetes cluster is the one OAM uses for its own tests (Talos Linux in
+Docker, with Argo), created by OAM's `just k8s` recipe. hot-dev-env only
+connects the uploader to it.
+
+**Requirements**
+
+- [`just`](https://github.com/casey/just) (`brew install just`). OAM's recipe
+  installs `kubectl` if missing; `talosctl` is installed by hot-dev-env (see
+  below).
+- `../openaerialmap` checked out next to this repo.
+- About 8 GB of memory for Docker on top of what you already run: the cluster
+  takes about 7 GB, and each pipeline step up to 3 GB.
+- Ports 9000 (rustfs) and 8091 (uploader) free on the host. Workflow pods
+  reach those two services through them.
+
+**Steps**
+
+1. Start OAM with processing. The first run creates the cluster and takes a
+   few minutes; later runs reuse it.
+
+   ```bash
+   make dev-oam-pipeline
+   ```
+
+2. Optional: build the pipeline images from your `../openaerialmap` checkout,
+   so workflows run your local changes. Without this the cluster uses the
+   images published from OAM's `main`. Run it again after changing pipeline
+   code.
+
+   ```bash
+   make oam-pipeline-images
+   ```
+
+3. Open <https://oam-upload.hotosm.test>, sign in and upload a GeoTIFF. Use
+   real imagery or a smooth synthetic image: the convert step rejects random
+   noise, because it cannot compress it within its quality limit.
+
+4. Follow the upload in "Your uploads" (Queued → Processing → Succeeded), or
+   in the cluster:
+
+   ```bash
+   kubectl -n argo get workflows
+   ```
+
+5. Open the item with "View" in "Your uploads" (STAC Browser), or check it in
+   the local catalogue:
+
+   ```bash
+   curl -s https://openaerialmap.hotosm.test/api/collections/openaerialmap/items/<upload id> | jq .properties
+   ```
+
+When you are done, free the cluster's memory. Uploads then stay unprocessed
+until the next `make dev-oam-pipeline`.
+
+```bash
+make oam-cluster-destroy
+```
+
+**How it is wired**
+
+- `scripts/oam-cluster.sh` (`make oam-cluster`) creates or reuses the cluster
+  with `just test cluster-available` in `../openaerialmap`, which also loads
+  OAM's WorkflowTemplate. It then adds the two Secrets the template needs and
+  writes `.oam-kubeconfig` for the uploader.
+- `docker-compose.oam-pipeline.yml` turns on Argo in `oam-uploader-api`,
+  mounts `.oam-kubeconfig`, and publishes rustfs and the uploader on the host.
+  Workflow pods cannot resolve compose service names; they reach both through
+  the Talos network gateway, `10.5.0.1`, as in OAM's `just test dev-cluster`.
+- `make dev-oam` (without `-pipeline`) puts the uploader back to storing
+  uploads only.
+
+**Troubleshooting**
+
+- *The cluster never gets past "waiting for Talos API".* Talos 1.14 does not
+  boot inside Docker Desktop ("failed to set up /etc overlay"). The script
+  installs talosctl v1.13.11 in `.bin/` and runs OAM's recipe with it; if a
+  cluster was already created with 1.14, remove it with
+  `make oam-cluster-destroy` and start again.
+- *kubectl times out on `10.5.0.2:6443` (macOS).* Docker Desktop does not
+  route container IPs to the host. The script points kubectl at the port
+  Docker publishes instead; run `make oam-cluster` again to fix it.
+- *An upload stays "Queued for processing".* Look at the cluster's events:
+
+  ```bash
+  kubectl -n argo get events --sort-by=.lastTimestamp | tail
+  ```
+
+  `secret "argo-odm.service-account-token" not found` means the cluster was
+  set up without the script; run `make oam-cluster`.
+- *A step fails.* Read its logs:
+
+  ```bash
+  kubectl -n argo logs -l workflows.argoproj.io/workflow=<workflow name> -c main
+  ```
 
 ### Updating Auth-libs
 
