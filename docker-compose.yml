@@ -565,6 +565,9 @@ services:
       - VITE_STAC_API_PATHNAME=api
       - VITE_STAC_TILER_PATHNAME=api/raster
       - VITE_STAC_ITEMS_LIMIT=40
+      # Unset, "Upload" opens the production uploader and publishes for real.
+      # Never point anything that writes at production from here.
+      - VITE_UPLOADER_URL=https://oam-upload.hotosm.test
     networks:
       - hotosm
     labels:
