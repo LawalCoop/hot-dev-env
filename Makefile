@@ -73,6 +73,7 @@ help:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  OAM Uploader:    https://oam-upload.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  Tasking Manager:     https://tm.hotosm.test"
@@ -214,6 +215,7 @@ dev:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  OAM Uploader:    https://oam-upload.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  Tasking Mgr:     https://tm.hotosm.test"
@@ -250,7 +252,7 @@ dev-dronetm:
 
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
-	docker compose up oam-frontend oam-backend oam-db login-frontend login-backend hanko hanko-db mailhog traefik --build
+	docker compose up oam-frontend oam-backend oam-db oam-uploader-api oam-uploader-migrations oam-uploader-db oam-rustfs oam-rustfs-init login-frontend login-backend hanko hanko-db mailhog traefik --build
 
 dev-fair:
 	@echo "Starting fAIr services..."
@@ -340,6 +342,7 @@ health:
 	@echo "OpenAerialMap:"
 	@$(CURL_CHECK) https://openaerialmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@$(CURL_CHECK) https://openaerialmap.hotosm.test/api > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://oam-upload.hotosm.test/__lbheartbeat__ > /dev/null && echo "  ✓ Uploader" || echo "  ✗ Uploader"
 	@echo ""
 	@echo "fAIr:"
 	@$(CURL_CHECK) https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"

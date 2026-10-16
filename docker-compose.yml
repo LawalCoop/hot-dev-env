@@ -17,6 +17,8 @@ volumes:
   dronetm-minio-data:
   dronetm-redis-data:
   oam-db-data:
+  oam-uploader-db-data:
+  oam-rustfs-data:
   fair-db-data:
   umap-db-data:
   export-tool-db-data:
@@ -649,6 +651,157 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # OAM Uploader (Litestar + htmx) with HOT Login.
+  # Uploads land in oam-rustfs but are not processed: the pipeline needs Argo
+  # on Kubernetes, which `just test dev-cluster` in the OAM repo provides.
+  oam-uploader-api:
+    build:
+      context: ../openaerialmap/backend/uploader-api
+      dockerfile: Dockerfile
+    container_name: hotosm-oam-uploader-api
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    volumes:
+      - ../openaerialmap/backend/uploader-api/app:/app/app
+      - ../openaerialmap/backend/uploader-api/migrations:/app/migrations
+    environment:
+      # Public URL of the uploader, used for redirects after login.
+      - OAM_UPLOAD_DOMAIN=oam-upload.hotosm.test
+      - OAM_FRONTEND_URL=https://openaerialmap.hotosm.test
+      - OAM_API_URL=https://openaerialmap.hotosm.test/api
+      - STAC_URL=https://openaerialmap.hotosm.test/api
+      - ARGO_ENABLED=false
+      # Uploader database
+      - DB_HOST=oam-uploader-db
+      - DB_USER=oam
+      - DB_PASSWORD=oam
+      - DB_NAME=oam_uploader
+      # Catalogue (shared with oam-backend)
+      - PGSTAC_DB_HOST=oam-db
+      - PGSTAC_DB_USER=postgres
+      - PGSTAC_DB_PASSWORD=postgres
+      - PGSTAC_DB_NAME=postgres
+      # Object storage: the browser uploads straight to oam-s3.hotosm.test
+      - S3_ENDPOINT=http://oam-rustfs:9000
+      - S3_EXTERNAL_ENDPOINT=https://oam-s3.hotosm.test
+      - S3_BUCKET=oam
+      - S3_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=oam
+      - AWS_SECRET_ACCESS_KEY=oam
+      # Auth configuration
+      - AUTH_PROVIDER=hotosm
+      - HANKO_API_URL=http://hanko:8000
+      - HANKO_PUBLIC_URL=https://login.hotosm.test
+      - LOGIN_URL=https://login.hotosm.test/app
+      - JWT_ISSUER=https://login.hotosm.test
+      - COOKIE_SECRET=${COOKIE_SECRET:-change-me-in-production-min-32-chars}
+      - COOKIE_DOMAIN=.hotosm.test
+      - COOKIE_SECURE=true
+      - COOKIE_SAMESITE=none
+    networks:
+      - hotosm
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oam-uploader.rule=Host(`oam-upload.hotosm.test`)"
+      - "traefik.http.routers.oam-uploader.entrypoints=websecure"
+      - "traefik.http.routers.oam-uploader.tls=true"
+      - "traefik.http.services.oam-uploader.loadbalancer.server.port=8080"
+    depends_on:
+      oam-uploader-db:
+        condition: service_healthy
+      oam-uploader-migrations:
+        condition: service_completed_successfully
+      oam-rustfs-init:
+        condition: service_completed_successfully
+      oam-db:
+        condition: service_healthy
+      hanko:
+        condition: service_started
+
+  # One-shot schema and migration runner for the uploader database.
+  oam-uploader-migrations:
+    build:
+      context: ../openaerialmap/backend/uploader-api
+      dockerfile: Dockerfile
+    container_name: hotosm-oam-uploader-migrations
+    entrypoint: ["/migrate-entrypoint.sh"]
+    environment:
+      - DB_HOST=oam-uploader-db
+      - DB_USER=oam
+      - DB_PASSWORD=oam
+      - DB_NAME=oam_uploader
+    networks:
+      - hotosm
+    depends_on:
+      oam-uploader-db:
+        condition: service_healthy
+    restart: "no"
+
+  oam-uploader-db:
+    image: postgis/postgis:18-3.6-alpine
+    container_name: hotosm-oam-uploader-db
+    environment:
+      - POSTGRES_USER=oam
+      - POSTGRES_PASSWORD=oam
+      - POSTGRES_DB=oam_uploader
+    ports:
+      - "127.0.0.1:5438:5432"  # Host access for DB clients
+    volumes:
+      - oam-uploader-db-data:/var/lib/postgresql
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oam -d oam_uploader"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # S3 for OAM uploads. RustFS, as in the OAM repo: its bucket script needs
+  # PutBucketCors, and the browser must read each part's ETag.
+  oam-rustfs:
+    image: rustfs/rustfs:1.0.0-rc.3
+    container_name: hotosm-oam-rustfs
+    command: server /data --console-address ":9001"
+    environment:
+      - RUSTFS_ACCESS_KEY=oam
+      - RUSTFS_SECRET_KEY=oam
+    volumes:
+      - oam-rustfs-data:/data
+    networks:
+      - hotosm
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oam-s3.rule=Host(`oam-s3.hotosm.test`)"
+      - "traefik.http.routers.oam-s3.entrypoints=websecure"
+      - "traefik.http.routers.oam-s3.tls=true"
+      - "traefik.http.services.oam-s3.loadbalancer.server.port=9000"
+
+  # Creates the bucket with public reads and CORS for the uploader origin.
+  # Same script the OAM chart's bucket-init job runs.
+  oam-rustfs-init:
+    build:
+      context: ../openaerialmap/backend/uploader-api
+      dockerfile: Dockerfile
+    container_name: hotosm-oam-rustfs-init
+    command: ["python", "/app/scripts/init_bucket.py"]
+    environment:
+      - S3_ENDPOINT=http://oam-rustfs:9000
+      - S3_BUCKET=oam
+      - S3_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=oam
+      - AWS_SECRET_ACCESS_KEY=oam
+      - INIT_CORS_ORIGINS=https://oam-upload.hotosm.test,https://openaerialmap.hotosm.test
+    networks:
+      - hotosm
+    depends_on:
+      oam-rustfs:
+        condition: service_healthy
+    restart: "no"
 
   # ==========================================
   # fAIr - AI Assisted Mapping
