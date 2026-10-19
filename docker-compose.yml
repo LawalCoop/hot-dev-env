@@ -577,6 +577,9 @@ services:
       # Unset ones (STAC, TiTiler, PMTiles) default to production.
       - VITE_HANKO_URL=https://login.hotosm.test
       - VITE_API_URL=https://openaerialmap.hotosm.test/api
+      # Unset, "Upload" opens the production uploader and publishes for real.
+      # Never point anything that writes at production from here.
+      - VITE_UPLOADER_URL=https://oam-upload.hotosm.test
     networks:
       - hotosm
     labels:
