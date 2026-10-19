@@ -50,3 +50,7 @@ services:
       # Without this, HANKO_API_URL is used as the issuer and validation fails.
       JWT_ISSUER: https://login.hotosm.test
       LOGIN_URL: https://login.hotosm.test/app
+
+  qfield-qgis:
+    # Base image ghcr.io/opengisch/qfieldcloud-qgis has no ARM64 build
+    platform: linux/amd64

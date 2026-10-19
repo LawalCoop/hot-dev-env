@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Drone-TM, and shared services
 
-.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status dev-oam-pipeline oam-cluster oam-pipeline-images oam-cluster-destroy
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -9,6 +9,14 @@ export COMPOSE_DOCKER_CLI_BUILD := 1
 
 # Reusable compose command for the Field-TM project, kept here to avoid repetition
 FIELD_TM_COMPOSE := cd ../field-tm && docker compose -f compose.yaml -f $(CURDIR)/docker-compose.field-tm.yml --env-file .env -p field-tm
+
+# OAM with upload processing (Argo on OAM's local Talos cluster)
+OAM_PIPELINE_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.oam-pipeline.yml
+OAM_SERVICES := oam-frontend oam-backend oam-db oam-stac-browser oam-uploader-api oam-uploader-migrations oam-uploader-db oam-rustfs oam-rustfs-init login-frontend login-backend hanko hanko-db mailhog traefik
+
+# curl does not read the macOS Keychain, so health checks pass mkcert's CA
+# explicitly; without mkcert they skip verification.
+CURL_CHECK := curl -f -s $(shell f="$$(mkcert -CAROOT 2>/dev/null)/rootCA.pem"; [ -f "$$f" ] && printf -- '--cacert "%s"' "$$f" || printf -- '-k')
 
 # Default target
 help:
@@ -27,6 +35,7 @@ help:
 	@echo "  make dev-login      - Start Login only (requires frontend/backend)"
 	@echo "  make dev-dronetm    - Start Drone-TM only"
 	@echo "  make dev-oam        - Start OpenAerialMap only"
+	@echo "  make dev-oam-pipeline - OpenAerialMap with upload processing"
 	@echo "  make dev-fair       - Start fAIr only"
 	@echo "  make dev-umap       - Start uMap only"
 	@echo "  make dev-chatmap    - Start ChatMap only"
@@ -69,6 +78,8 @@ help:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  OAM Uploader:    https://oam-upload.hotosm.test"
+	@echo "  OAM Browser:     https://oam-browser.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  Tasking Manager:     https://tm.hotosm.test"
@@ -210,6 +221,8 @@ dev:
 	@echo "  Drone-TM:        https://dronetm.hotosm.test"
 	@echo "  fAIr:            https://fair.hotosm.test"
 	@echo "  OpenAerialMap:   https://openaerialmap.hotosm.test"
+	@echo "  OAM Uploader:    https://oam-upload.hotosm.test"
+	@echo "  OAM Browser:     https://oam-browser.hotosm.test"
 	@echo "  uMap:            https://umap.hotosm.test"
 	@echo "  ChatMap:         https://chatmap.hotosm.test"
 	@echo "  Tasking Mgr:     https://tm.hotosm.test"
@@ -246,7 +259,27 @@ dev-dronetm:
 
 dev-oam:
 	@echo "Starting OpenAerialMap services..."
-	docker compose up oam-frontend oam-backend oam-db hanko hanko-db mailhog traefik --build
+	docker compose up $(OAM_SERVICES) --build
+
+# Same services, with uploads processed by OAM's real pipeline. Creates (or
+# reuses) OAM's local Talos + Argo cluster first; needs `just` and ../openaerialmap.
+dev-oam-pipeline: oam-cluster
+	@echo "Starting OpenAerialMap services with upload processing..."
+	$(OAM_PIPELINE_COMPOSE) up $(OAM_SERVICES) --build
+
+oam-cluster:
+	@./scripts/oam-cluster.sh
+
+# Build the pipeline images from ../openaerialmap so workflows run your local
+# changes. Without this, the cluster pulls the published images from ghcr.io.
+oam-pipeline-images:
+	cd ../openaerialmap && just test _build-pipeline-images
+
+# Frees the cluster's memory. Uploads stop being processed until oam-cluster.
+oam-cluster-destroy:
+	cd ../openaerialmap && PATH="$(CURDIR)/.bin:$$PATH" just k8s cluster-destroy
+	@# Emptied, not deleted: a running uploader keeps reading a deleted file.
+	@if [ -f .oam-kubeconfig ]; then : > .oam-kubeconfig; fi
 
 dev-fair:
 	@echo "Starting fAIr services..."
@@ -326,44 +359,46 @@ health:
 	@echo "════════════════════════════════════════════════"
 	@echo ""
 	@echo "Portal:"
-	@curl -f -s https://portal.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://portal.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://portal.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://portal.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "Drone-TM:"
-	@curl -f -s https://dronetm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://dronetm.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://dronetm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://dronetm.hotosm.test/api/health > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "OpenAerialMap:"
-	@curl -f -s https://openaerialmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://openaerialmap.hotosm.test/api > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://openaerialmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://openaerialmap.hotosm.test/api > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://oam-upload.hotosm.test/__lbheartbeat__ > /dev/null && echo "  ✓ Uploader" || echo "  ✗ Uploader"
+	@$(CURL_CHECK) https://oam-browser.hotosm.test > /dev/null && echo "  ✓ STAC Browser" || echo "  ✗ STAC Browser"
 	@echo ""
 	@echo "fAIr:"
-	@curl -f -s https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s https://fair.hotosm.test/api/v1/ > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://fair.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://fair.hotosm.test/api/v1/ > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "uMap:"
-	@curl -f -s https://umap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://umap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@echo ""
 	@echo "ChatMap:"
-	@curl -f -s https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://chatmap.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
 	@echo ""
 	@echo "Export Tool:"
-	@curl -f -s https://export-tool.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
+	@$(CURL_CHECK) https://export-tool.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
 	@echo ""
 	@echo "Raw Data API:"
-	@curl -f -s https://raw-data-api.hotosm.test/v1 > /dev/null && echo "  ✓ API" || echo "  ✗ API"
+	@$(CURL_CHECK) https://raw-data-api.hotosm.test/v1 > /dev/null && echo "  ✓ API" || echo "  ✗ API"
 	@echo ""
 	@echo "Tasking Manager:"
-	@curl -f -s -k https://tm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
-	@curl -f -s -k https://tm.hotosm.test/api/docs > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
+	@$(CURL_CHECK) https://tm.hotosm.test > /dev/null && echo "  ✓ Frontend" || echo "  ✗ Frontend"
+	@$(CURL_CHECK) https://tm.hotosm.test/api/docs > /dev/null && echo "  ✓ Backend API" || echo "  ✗ Backend API"
 	@echo ""
 	@echo "Field-TM:"
-	@curl -f -s https://field.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
+	@$(CURL_CHECK) https://field.hotosm.test > /dev/null && echo "  ✓ App" || echo "  ✗ App"
 	@echo ""
 	@echo "Shared:"
-	@curl -f -s https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
-	@curl -f -s https://minio.hotosm.test > /dev/null && echo "  ✓ MinIO Console" || echo "  ✗ MinIO Console"
-	@curl -f -s https://traefik.hotosm.test > /dev/null && echo "  ✓ Traefik Dashboard" || echo "  ✗ Traefik Dashboard"
+	@$(CURL_CHECK) https://login.hotosm.test/.well-known/jwks.json > /dev/null && echo "  ✓ Hanko Auth" || echo "  ✗ Hanko Auth"
+	@$(CURL_CHECK) https://minio.hotosm.test > /dev/null && echo "  ✓ MinIO Console" || echo "  ✗ MinIO Console"
+	@$(CURL_CHECK) https://traefik.hotosm.test > /dev/null && echo "  ✓ Traefik Dashboard" || echo "  ✗ Traefik Dashboard"
 	@echo ""
 
 # ==================

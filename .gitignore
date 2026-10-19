@@ -27,7 +27,6 @@ Thumbs.db
 certs/
 
 # Temporary config files
-traefik-tls.yml
 /hanko-config.yaml
 # But keep config/ folder tracked
 !config/
@@ -38,3 +37,8 @@ Miniconda3*.sh
 
 # PEM files (certs generated locally)
 *.pem
+
+# Kubeconfig for the local OAM processing cluster (make oam-cluster)
+.oam-kubeconfig
+# Pinned tools downloaded by scripts (talosctl)
+.bin/
