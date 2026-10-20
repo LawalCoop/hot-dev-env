@@ -8,6 +8,7 @@ This repo orchestrates multiple HOTOSM applications:
 - **Portal** - Main application portal
 - **Login** - Authentication & SSO service (includes auth-libs)
 - **Drone-TM** - Drone Tasking Manager
+- **Tasking Manager** - Collaborative mapping task manager
 - **fAIr** - AI-assisted mapping tool
 - **ChatMap** - AI-powered map data extraction from chat
 - **OpenAerialMap** - Open imagery catalogue (frontend + STAC API)
@@ -16,6 +17,7 @@ All services run locally with subdomain routing (just like production):
 ```
 https://portal.hotosm.test        → Portal
 https://dronetm.hotosm.test       → Drone-TM
+https://tm.hotosm.test            → Tasking Manager
 https://fair.hotosm.test          → fAIr
 https://chatmap.hotosm.test       → ChatMap
 https://openaerialmap.hotosm.test → OpenAerialMap
@@ -127,6 +129,7 @@ make dev
 Open in your browser:
 - **Portal:** https://portal.hotosm.test
 - **Drone-TM:** https://dronetm.hotosm.test
+- **Tasking Manager:** https://tm.hotosm.test
 - **fAIr:** https://fair.hotosm.test
 - **ChatMap:** https://chatmap.hotosm.test
 - **Login:** https://login.hotosm.test
@@ -262,6 +265,8 @@ The `hot-dev-env` repo only contains orchestration config (docker-compose, Makef
 | Portal Backend | https://portal.hotosm.test/api | 8000 | FastAPI |
 | Drone-TM Frontend | https://dronetm.hotosm.test | 3040 | React app (Vite) |
 | Drone-TM Backend | https://dronetm.hotosm.test/api | 8000 | FastAPI |
+| Tasking Manager Frontend | https://tm.hotosm.test | 3000 | React app (Craco) |
+| Tasking Manager Backend | https://tm.hotosm.test/api | 5000 | FastAPI |
 | fAIr Frontend | https://fair.hotosm.test | 3000 | React app (Vite) |
 | fAIr Backend | https://fair.hotosm.test/api | 8000 | Django |
 | ChatMap Frontend | https://chatmap.hotosm.test | 5173 | React app (Vite) |
@@ -328,6 +333,32 @@ cd ../drone-tm
 pnpm --filter frontend dev  # Frontend on :3040
 cd src/backend && uv run uvicorn app.main:app --reload  # Backend on :8000
 ```
+
+### Working on Tasking Manager
+
+```bash
+# Starts TM plus Hanko and Login (needed for SSO)
+make dev-tm
+```
+
+TM needs its own OSM OAuth2 app (scopes `read_prefs write_api`). Register it on the
+OSM dev server so iD/Rapid saves don't touch the real map:
+https://master.apis.dev.openstreetmap.org/oauth2/applications/new
+
+Redirect URIs:
+- `https://tm.hotosm.test/authorized`
+- `https://tm.hotosm.test/api/v2/system/authentication/osm/callback/`
+
+Then set in `.env`:
+
+```bash
+TM_CLIENT_ID=...
+TM_CLIENT_SECRET=...
+TM_OSM_SERVER_URL=https://master.apis.dev.openstreetmap.org
+TM_OSM_SERVER_API_URL=https://master.apis.dev.openstreetmap.org
+```
+
+The frontend takes a few minutes to compile the first time (it builds iD and Rapid).
 
 ### Working on fAIr
 
@@ -517,6 +548,7 @@ The setup script will detect your OS and provide instructions to add:
 ```
 127.0.0.1 portal.hotosm.test
 127.0.0.1 dronetm.hotosm.test
+127.0.0.1 tm.hotosm.test
 127.0.0.1 fair.hotosm.test
 127.0.0.1 chatmap.hotosm.test
 127.0.0.1 login.hotosm.test

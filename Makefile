@@ -1,5 +1,5 @@
 # HOTOSM Development Environment
-# Orchestrates Portal, Drone-TM, and shared services
+# Orchestrates Portal, Login, Drone-TM, Tasking Manager, fAIr and other HOTOSM apps
 
 .PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status dev-oam-pipeline oam-cluster oam-pipeline-images oam-cluster-destroy
 
@@ -295,7 +295,7 @@ dev-chatmap:
 
 dev-tm:
 	@echo "Starting Tasking Manager services..."
-	docker compose up tm-frontend tm-backend tm-db tm-migration tm-cron-jobs mailhog traefik --build
+	docker compose up tm-frontend tm-backend tm-db tm-migration tm-cron-jobs hanko hanko-db login-backend login-frontend mailhog traefik --build
 
 dev-export-tool:
 	@echo "Starting Export Tool services (with Raw Data API)..."

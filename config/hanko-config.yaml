@@ -19,6 +19,7 @@ cors:
     - "https://export-tool.hotosm.test"
     - "https://field.hotosm.test"
     - "http://field.hotosm.test:7050"
+    - "https://tm.hotosm.test"
   unsafe_wildcard_origin_allowed: true
 
 database:
@@ -121,6 +122,7 @@ third_party:
     - "https://export-tool.hotosm.test/**"
     - "https://field.hotosm.test/**"
     - "http://field.hotosm.test:7050/**"
+    - "https://tm.hotosm.test/**"
   cookie:
     domain: ".hotosm.test"
     http_only: true
