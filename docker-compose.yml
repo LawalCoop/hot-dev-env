@@ -262,7 +262,7 @@ services:
   # Hanko database migrations (runs once before Hanko starts)
   hanko-migrate:
     platform: linux/amd64  # No ARM64 image available
-    image: ghcr.io/teamhanko/hanko:latest
+    image: ghcr.io/teamhanko/hanko:v2.5.0
     container_name: hotosm-hanko-migrate
     volumes:
       - ./config/hanko-config.yaml:/etc/config/.config.yaml:ro
@@ -278,7 +278,7 @@ services:
 
   hanko:
     platform: linux/amd64  # No ARM64 image available
-    image: ghcr.io/teamhanko/hanko:latest
+    image: ghcr.io/teamhanko/hanko:v2.5.0
     container_name: hotosm-hanko
     volumes:
       - ./config/hanko-config.yaml:/etc/config/.config.yaml:ro
