@@ -298,6 +298,10 @@ make dev-frontend  # Frontend on :5173
 make dev-backend   # Backend on :8000
 ```
 
+#### Using the local hotosm-permissions library
+
+Until it's published, portal-backend can load `../login/permissions-libs/python/src` from source (via `docker-compose.permissions-libs.yml`). `make dev-portal-permissions` starts Portal + Login with it; `make link-permissions-libs` recreates only portal-backend with it (uvicorn reloads on save); `make unlink-permissions-libs` goes back to plain `docker-compose.yml`.
+
 ### Working on Login
 
 The Login service works in two modes:

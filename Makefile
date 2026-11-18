@@ -1,7 +1,7 @@
 # HOTOSM Development Environment
 # Orchestrates Portal, Login, Drone-TM, Tasking Manager, fAIr and other HOTOSM apps
 
-.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui clean load-dump setup-test-users deploy-status dev-oam-pipeline oam-cluster oam-pipeline-images oam-cluster-destroy
+.PHONY: help setup setup-https install dev dev-fair dev-tm dev-umap dev-export-tool dev-raw-data-api dev-field stop restart logs logs-follow ps health auth-libs link-auth-libs unlink-auth-libs link-hotosm-ui unlink-hotosm-ui dev-portal-permissions link-permissions-libs unlink-permissions-libs clean load-dump setup-test-users deploy-status dev-oam-pipeline oam-cluster oam-pipeline-images oam-cluster-destroy
 
 # Enable BuildKit for Docker builds (required for SSH forwarding)
 export DOCKER_BUILDKIT := 1
@@ -59,6 +59,11 @@ help:
 	@echo "@hotosm/ui Development:"
 	@echo "  make link-hotosm-ui   - Link local @hotosm/ui for development"
 	@echo "  make unlink-hotosm-ui - Unlink local @hotosm/ui"
+	@echo ""
+	@echo "hotosm-permissions Development:"
+	@echo "  make dev-portal-permissions - Start Portal + Login with local permissions-libs"
+	@echo "  make link-permissions-libs  - Load local permissions-libs into portal-backend"
+	@echo "  make unlink-permissions-libs - Recreate portal-backend without it"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make auth-libs      - Update auth-libs in all projects"
@@ -482,6 +487,34 @@ unlink-hotosm-ui:
 	@echo "Note: unlike auth-libs, @hotosm/ui is not (yet) a package.json dependency"
 	@echo "of portal, so there is no npm version to restore - this only removes the"
 	@echo "local symlink."
+
+# hotosm-permissions is not published yet, so portal-backend loads it from
+# source via docker-compose.permissions-libs.yml (extra mount + PYTHONPATH).
+dev-portal-permissions:
+	@echo "Starting Portal + Login services with local permissions-libs..."
+	docker compose -f docker-compose.yml -f docker-compose.permissions-libs.yml --profile login up portal-frontend portal-backend portal-db login-frontend login-backend hanko hanko-db mailhog traefik --build
+
+link-permissions-libs:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Linking local permissions-libs into portal-backend"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@echo "Recreating portal-backend (a plain restart does NOT pick up new mounts/env)..."
+	@docker compose -f docker-compose.yml -f docker-compose.permissions-libs.yml up -d --force-recreate --no-deps portal-backend
+	@echo ""
+	@echo "Done! Now you can:"
+	@echo "  1. Edit code in ../login/permissions-libs/python/src/"
+	@echo "  2. Save - uvicorn reloads portal-backend automatically"
+
+unlink-permissions-libs:
+	@echo "════════════════════════════════════════════════"
+	@echo "  Unlinking permissions-libs from portal-backend"
+	@echo "════════════════════════════════════════════════"
+	@echo ""
+	@echo "Recreating portal-backend with docker-compose.yml only..."
+	@docker compose up -d --force-recreate --no-deps portal-backend
+	@echo ""
+	@echo "Done! portal-backend no longer mounts the local library."
 
 clean:
 	@echo "Cleaning all containers and volumes..."

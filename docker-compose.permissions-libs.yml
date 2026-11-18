@@ -1,0 +1,14 @@
+# Loads the local hotosm-permissions library (../login/permissions-libs) into
+# portal-backend from source, via PYTHONPATH, and reloads uvicorn when it
+# changes. Used by `make dev-portal-permissions` / `make link-permissions-libs`
+# on top of docker-compose.yml.
+#
+# Temporary: remove this file once Portal installs the published package.
+
+services:
+  portal-backend:
+    volumes:
+      - ../login/permissions-libs/python/src:/permissions-libs-src
+    environment:
+      - PYTHONPATH=/permissions-libs-src
+    command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app --reload-dir /permissions-libs-src"
